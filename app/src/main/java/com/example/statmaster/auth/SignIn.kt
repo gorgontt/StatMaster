@@ -1,5 +1,8 @@
 package com.example.statmaster.auth
 
+import android.content.ContentValues.TAG
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -28,11 +31,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -40,20 +45,91 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import io.github.jan.supabase.exceptions.RestException
+import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
-    var name by remember { mutableStateOf("Имя") }
+
+    //Google SignIn
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val onClick: () -> Unit = {
+        val credentialManager = CredentialManager.create(context)
+
+        // Generate a nonce and hash it with sha-256
+        val rawNonce = UUID.randomUUID().toString()
+        val bytes = rawNonce.toByteArray()
+        val md = MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(bytes)
+        val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
+
+        // Замените на ваш реальный client ID из Google Cloud Console
+        val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId("850534604231-elobf2jjkap2pqqs6bcupguulid02crc.apps.googleusercontent.com")
+            .setNonce(hashedNonce)
+            .build()
+
+        val request: GetCredentialRequest = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        coroutineScope.launch {
+            try {
+                val result = credentialManager.getCredential(
+                    request = request,
+                    context = context
+                )
+                val credential = result.credential
+                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                val googleIdToken = googleIdTokenCredential.idToken
+
+                Log.i(TAG, "Google ID Token: $googleIdToken")
+                Toast.makeText(context, "Вы успешно вошли!", Toast.LENGTH_LONG).show()
+
+                // Здесь можно добавить логику входа через Supabase
+                /*
+                supabase.auth.signInWith(IDToken) {
+                    idToken = googleIdToken
+                    provider = Google
+                    nonce = rawNonce
+                }
+                */
+
+            } catch (e: GetCredentialException) {
+                Log.e(TAG, "GetCredentialException", e)
+                Toast.makeText(context, "Ошибка входа: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (e: GoogleIdTokenParsingException) {
+                Log.e(TAG, "GoogleIdTokenParsingException", e)
+                Toast.makeText(context, "Ошибка обработки токена: ${e.message}", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected error", e)
+                Toast.makeText(context, "Неизвестная ошибка: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+
+
+    }
+
     var email by remember { mutableStateOf("Эл.почта") }
     var password by remember { mutableStateOf("Пароль") }
-    var repeatPassword by remember { mutableStateOf("Повторите пароль") }
 
     Column(
         modifier = Modifier
@@ -136,7 +212,7 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
         Spacer(modifier = Modifier.height(30.dp))
 
 
-        val buttonVisible = name.isNotBlank()
+        val buttonVisible = email.isNotBlank()
         AnimatedVisibility(visible = buttonVisible) {
 
             Card(
@@ -160,8 +236,8 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
 
                 Button(
                     onClick = {
-                        if (name.isNotBlank()) {
-                            name = ""
+                        if (email.isNotBlank()) {
+                            email = ""
                         }
                         onDismiss()
                     },
@@ -198,11 +274,15 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically ){
 
-            Image(
-                modifier = Modifier.padding(20.dp),
-                painter = painterResource(id = R.drawable.google_icon),
-                contentDescription = "GoogleIcon"
-            )
+            Button(onClick = onClick) {
+
+                Image(
+                    modifier = Modifier.padding(20.dp),
+                    painter = painterResource(id = R.drawable.google_icon),
+                    contentDescription = "GoogleIcon"
+                )
+            }
+
 
             Image(
                 modifier = Modifier.padding(20.dp),

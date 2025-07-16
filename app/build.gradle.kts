@@ -39,6 +39,10 @@ android {
     buildFeatures {
         compose = true
     }
+
+    packagingOptions {
+        resources.excludes.add("META-INF/*")
+    }
 }
 
 dependencies {
@@ -67,6 +71,11 @@ dependencies {
     implementation(libs.postgrest.kt)
     implementation(libs.ktor.client.android)
     implementation(libs.kotlinx.serialization.json)
+
+    //Sign In with Google
+    implementation("androidx.credentials:credentials:1.2.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.2.0")
+    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.0")
 
 
 
