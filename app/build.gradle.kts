@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 
-    kotlin("plugin.serialization")
+    kotlin("plugin.serialization") version "2.0.0"
 }
 
 android {
@@ -66,11 +66,20 @@ dependencies {
 
 
     //Supabase
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.realtime.kt)
-    implementation(libs.postgrest.kt)
-    implementation(libs.ktor.client.android)
-    implementation(libs.kotlinx.serialization.json)
+//    implementation(platform(libs.supabase.bom))
+//    implementation(libs.realtime.kt)
+//    implementation(libs.postgrest.kt)
+//    implementation(libs.ktor.client.android)
+//    implementation(libs.kotlinx.serialization.json)
+
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.2.1"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.ktor:ktor-client-android:2.3.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    //implementation("io.github.jan-tennert.supabase:gotrue-kt")
 
     //Sign In with Google
     implementation("androidx.credentials:credentials:1.2.0")
