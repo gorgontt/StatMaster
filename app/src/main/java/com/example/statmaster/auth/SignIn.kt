@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.statmaster.AuthManager
 import com.example.statmaster.AuthResponse
 import com.example.statmaster.R
@@ -63,7 +64,7 @@ import kotlinx.coroutines.launch
 
 
 @Composable
-fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
+fun BottomSheetSignInDialogContent(onDismiss: () -> Unit, navController: NavController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -318,6 +319,7 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
                             when (response) {
                                 is AuthResponse.Succes -> {
                                     Toast.makeText(context, "Good", Toast.LENGTH_LONG).show()
+                                    navController.navigate(Routes.MainContent.route)
                                     onDismiss()
 //                                    navController.navigate(Routes.MainContent.route) {
 //                                        popUpTo(Routes.MainClass.route) { inclusive = true }

@@ -23,11 +23,11 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.navigation.NavController
+import androidx.navigation.Navigation
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.statmaster.auth.MainClass
-import com.example.statmaster.auth.MainContent
 import com.example.statmaster.ui.theme.StatMasterTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -54,66 +54,29 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             StatMasterTheme {
-                MainClass()
-//                // Создаем NavController и оборачиваем в CompositionLocalProvider
-//                val navController = rememberNavController()
-//                CompositionLocalProvider(LocalNavController provides navController) {
-//                    // Убедимся, что Navigation - корневой компонент
-//                    AppNavigation()
+                Navigation()
 
             }
         }
     }
 }
 
-//@Composable
-//fun AppNavigation() {
-//    val navController = LocalNavController.current
-//    NavHost(
-//        navController = navController,
-//        startDestination = Routes.MainClass.route
-//    ) {
-//        composable(Routes.MainClass.route) { MainClass() }
-//        composable(Routes.MainContent.route) { MainContent() }
-//    }
-//}
 
-//@Composable
-//fun Navigation() {
-//    val navController = NavController.
-//    NavHost(
-//        navController = navController,
-//        startDestination = Routes.MainClass.route
-//    ) {
-//        composable(Routes.MainClass.route) { MainClass() }
-//        composable(Routes.MainContent.route) { MainContent() }
+@Composable
+fun Navigation() {
+    val navController = rememberNavController()
+    val context = LocalContext.current
+    val onDismiss: () -> Unit = { /* действие при закрытии */ }
+    NavHost(
+        navController = navController,
+        startDestination = Routes.MainClass.route
+    ) {
+        composable(Routes.MainClass.route) { MainClass(navController) }
+        composable(Routes.MainContent.route) { MainContent(navController) }
 
 
-//            composable("choose_version") {
-//                ChooseVersion(navController)
-//            }
-
-//        // 1 навигация
-//        composable("players_list/{type}") { backStackEntry ->
-//            val type = backStackEntry.arguments?.getString("type")
-//            val checkedState = backStackEntry.arguments?.getString("checkedState")?.toBoolean() ?: false
-//            // val onCheckedChange = backStackEntry.arguments?.getString("onCheckedChange")
-//            type?.let {
-//                AddNewPlayers(type = it, navController, playersList, checkedState, onCheckedChange)
-//            }
-//        }
-//
-//        composable("pager/{type}/{checkedState}") { backStackEntry ->
-//            val type = backStackEntry.arguments?.getString("type")
-//            val checkedState = backStackEntry.arguments?.getString("checkedState")?.toBoolean() ?: false
-//            type?.let {
-//                Pager(type = it, playersList, onDismiss, navController, checkedState)
-//            }
-//        }
-
-//
-//    }
-//}
+    }
+}
 
 sealed interface AuthResponse{
     data object Succes: AuthResponse
