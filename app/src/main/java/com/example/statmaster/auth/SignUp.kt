@@ -52,13 +52,6 @@ import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.ShadowGrey
 import com.example.statmaster.ui.theme.Transparent
 import com.example.statmaster.ui.theme.innerShadow
-import io.github.jan.supabase.annotations.SupabaseInternal
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.postgrest.Postgrest
-import io.ktor.client.plugins.websocket.WebSockets
-
-
 
 
 @OptIn(ExperimentalMaterial3Api::class)
