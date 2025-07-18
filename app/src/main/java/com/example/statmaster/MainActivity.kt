@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -21,10 +22,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.statmaster.auth.MainClass
+import com.example.statmaster.auth.MainContent
 import com.example.statmaster.ui.theme.StatMasterTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -45,37 +48,46 @@ import java.security.MessageDigest
 import java.util.UUID
 
 class MainActivity : ComponentActivity() {
-
     @OptIn(SupabaseInternal::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             StatMasterTheme {
-
                 MainClass()
+//                // Создаем NavController и оборачиваем в CompositionLocalProvider
+//                val navController = rememberNavController()
+//                CompositionLocalProvider(LocalNavController provides navController) {
+//                    // Убедимся, что Navigation - корневой компонент
+//                    AppNavigation()
 
             }
         }
     }
 }
 
-@Composable
-fun Navigation() {
-    val navController = rememberNavController()
-//    val context = LocalContext.current
-//    val savedPlayers = loadPlayers(context).toMutableList()
-//    val playersList = remember { mutableStateListOf(*savedPlayers.toTypedArray()) }
-//
-//    val onDismiss: () -> Unit = { /* действие при закрытии */ }
-//    val onCheckedChange: (Boolean) -> Unit = { /* действие при закрытии */ }
+//@Composable
+//fun AppNavigation() {
+//    val navController = LocalNavController.current
+//    NavHost(
+//        navController = navController,
+//        startDestination = Routes.MainClass.route
+//    ) {
+//        composable(Routes.MainClass.route) { MainClass() }
+//        composable(Routes.MainContent.route) { MainContent() }
+//    }
+//}
 
-    NavHost(
-        navController = navController,
-        startDestination = "main_class"
-    ) {
-        composable(Routes.MainClass.route) { MainClass() }
-        //composable(Routes.SignUp.route) { SignUp() }
+//@Composable
+//fun Navigation() {
+//    val navController = NavController.
+//    NavHost(
+//        navController = navController,
+//        startDestination = Routes.MainClass.route
+//    ) {
+//        composable(Routes.MainClass.route) { MainClass() }
+//        composable(Routes.MainContent.route) { MainContent() }
+
 
 //            composable("choose_version") {
 //                ChooseVersion(navController)
@@ -99,9 +111,9 @@ fun Navigation() {
 //            }
 //        }
 
-
-    }
-}
+//
+//    }
+//}
 
 sealed interface AuthResponse{
     data object Succes: AuthResponse
@@ -137,15 +149,14 @@ class AuthManager(
     }
 
     fun SignInWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
-
-        try{
-            supabase.auth.signInWith(Email){
+        try {
+            supabase.auth.signInWith(Email) {
                 email = emailValue
                 password = passwordValue
             }
-
-        }catch (e: Exception){
-            emit(AuthResponse.Error(e.localizedMessage))
+            emit(AuthResponse.Succes)
+        } catch (e: Exception) {
+            emit(AuthResponse.Error(e.localizedMessage ?: "Неверный email или пароль"))
         }
     }
 
@@ -181,15 +192,22 @@ class AuthManager(
             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
             val googleIdToken = googleIdTokenCredential.idToken
 
+            Log.i(TAG, "Google ID Token: $googleIdToken")
+            Toast.makeText(context, "Вы успешно вошли!", Toast.LENGTH_LONG).show()
 
             supabase.auth.signInWith(IDToken) {
                 idToken = googleIdToken
                 provider = Google
                 //nonce = rawNonce
             }
-            Log.i(TAG, "Google ID Token: $googleIdToken")
-            Toast.makeText(context, "Вы успешно вошли!", Toast.LENGTH_LONG).show()
 
+            supabase.auth.signInWith(IDToken) {
+                idToken = googleIdToken
+                provider = Google
+            }
+            emit(AuthResponse.Succes)
+        } catch (e: Exception) {
+            emit(AuthResponse.Error(e.localizedMessage ?: "Ошибка входа через Google"))
         } catch (e: GetCredentialException) {
             Log.e(TAG, "GetCredentialException", e)
             Toast.makeText(context, "Ошибка входа: ${e.message}", Toast.LENGTH_LONG).show()
@@ -200,6 +218,8 @@ class AuthManager(
             Log.e(TAG, "Unexpected error", e)
             Toast.makeText(context, "Неизвестная ошибка: ${e.message}", Toast.LENGTH_LONG).show()
         }
+
+
 
     }
 }

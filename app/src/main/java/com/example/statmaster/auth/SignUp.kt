@@ -64,8 +64,10 @@ import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.ShadowGrey
 import com.example.statmaster.ui.theme.Transparent
 import com.example.statmaster.ui.theme.innerShadow
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -334,6 +336,9 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit) {
                authManager.loginGoogleUser()
                    .onEach { result ->
                        if (result is AuthResponse.Succes){
+//                           coroutineScope.launch {
+//                               authManager.supabase.from("posts").insert(mapOf("content" to "Hello new user!"))
+//                           }
                            Log.d("auth", "Google success")
                        }else{
                            Log.d("auth", "Google failed")

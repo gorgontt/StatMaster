@@ -59,6 +59,9 @@ import com.example.statmaster.ui.theme.innerShadow
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainClass(){
+
+    //val navController = LocalNavController.current
+
     Column(modifier = Modifier.fillMaxSize().background(Blue), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
 
@@ -147,7 +150,7 @@ fun MainClass(){
                         containerColor = BackgroundColor,
                         sheetState = sheetState,
                         onDismissRequest = { isSheetOpen = false },
-                        modifier = Modifier.fillMaxHeight(0.9f) // Устанавливаем 70% высоты экрана
+                        modifier = Modifier.fillMaxHeight() // Устанавливаем 70% высоты экрана
                     ) {
                         BottomSheetSignUpDialogContent() {
                             isSheetOpen = false
@@ -213,6 +216,3 @@ fun MainClass(){
 
     }
 }
-
-
-

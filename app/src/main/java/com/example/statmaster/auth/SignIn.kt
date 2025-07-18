@@ -1,14 +1,11 @@
 package com.example.statmaster.auth
 
-import android.content.ContentValues.TAG
-import android.util.Log
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,11 +20,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,106 +38,60 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.credentials.CredentialManager
-import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialException
+import com.example.statmaster.AuthManager
+import com.example.statmaster.AuthResponse
 import com.example.statmaster.R
+import com.example.statmaster.Routes
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
-import java.util.UUID
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    //Google SignIn
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    val authManager = remember { AuthManager(context) }
+    //val navController = LocalNavController.current
 
-    val onClick: () -> Unit = {
-        val credentialManager = CredentialManager.create(context)
-
-        // Generate a nonce and hash it with sha-256
-        val rawNonce = UUID.randomUUID().toString()
-        val bytes = rawNonce.toByteArray()
-        val md = MessageDigest.getInstance("SHA-256")
-        val digest = md.digest(bytes)
-        val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
-
-        // Замените на ваш реальный client ID из Google Cloud Console
-        val googleIdOption: GetGoogleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId("850534604231-elobf2jjkap2pqqs6bcupguulid02crc.apps.googleusercontent.com")
-            .setNonce(hashedNonce)
-            .build()
-
-        val request: GetCredentialRequest = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-
-        coroutineScope.launch {
-            try {
-                val result = credentialManager.getCredential(
-                    request = request,
-                    context = context
-                )
-                val credential = result.credential
-                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                val googleIdToken = googleIdTokenCredential.idToken
-
-                Log.i(TAG, "Google ID Token: $googleIdToken")
-                Toast.makeText(context, "Вы успешно вошли!", Toast.LENGTH_LONG).show()
-
-                // Здесь можно добавить логику входа через Supabase
-                /*
-                supabase.auth.signInWith(IDToken) {
-                    idToken = googleIdToken
-                    provider = Google
-                    nonce = rawNonce
-                }
-                */
-
-            } catch (e: GetCredentialException) {
-                Log.e(TAG, "GetCredentialException", e)
-                Toast.makeText(context, "Ошибка входа: ${e.message}", Toast.LENGTH_LONG).show()
-            } catch (e: GoogleIdTokenParsingException) {
-                Log.e(TAG, "GoogleIdTokenParsingException", e)
-                Toast.makeText(context, "Ошибка обработки токена: ${e.message}", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Log.e(TAG, "Unexpected error", e)
-                Toast.makeText(context, "Неизвестная ошибка: ${e.message}", Toast.LENGTH_LONG).show()
-            }
+    // Проверяем, авторизован ли пользователь
+    LaunchedEffect(Unit) {
+        val session = authManager.supabase.auth.currentSessionOrNull()
+        if (session != null) {
+            Toast.makeText(context, "Good", Toast.LENGTH_LONG).show()
+//            onDismiss()
+//            navController.navigate(Routes.MainContent.route) {
+//                popUpTo(Routes.MainClass.route) { inclusive = true }
+//            }
         }
-
-
     }
-
-    var email by remember { mutableStateOf("Эл.почта") }
-    var password by remember { mutableStateOf("Пароль") }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState()) // Добавляем возможность прокрутки если контент не помещается
-            .padding(bottom = 24.dp) // Добавляем отступ снизу
-            .background(BackgroundColor))
-    {
-
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 24.dp)
+            .background(BackgroundColor)
+    ) {
         Text(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -153,6 +106,18 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
+        // Отображение ошибки, если есть
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Color.Red,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 30.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
         OutlinedTextField(
             modifier = Modifier
                 .background(Transparent)
@@ -165,12 +130,21 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
                 ),
             value = email,
             onValueChange = { email = it },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             textStyle = TextStyle(
                 color = Black,
                 fontSize = 20.sp,
                 fontFamily = FontFamily(Font(R.font.jura))
             ),
+            placeholder = {
+                Text(text = "Адрес электронной почты",
+                    style = TextStyle(
+                        color = DarkBlue,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.jura))
+                    )
+                )
+            },
             shape = RoundedCornerShape(37.dp),
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Transparent,
@@ -194,12 +168,22 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
                 ),
             value = password,
             onValueChange = { password = it },
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             textStyle = TextStyle(
                 color = Black,
                 fontSize = 20.sp,
                 fontFamily = FontFamily(Font(R.font.jura))
             ),
+            visualTransformation = PasswordVisualTransformation(),
+            placeholder = {
+                Text(text = "Введите пароль",
+                    style = TextStyle(
+                        color = DarkBlue,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.jura))
+                    )
+                )
+            },
             shape = RoundedCornerShape(37.dp),
             colors = TextFieldDefaults.colors(
                 unfocusedContainerColor = Transparent,
@@ -211,86 +195,169 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
+        Card(
+            modifier = Modifier.fillMaxWidth()
+                .align(alignment = Alignment.CenterHorizontally)
+                .background(Transparent)
+                .padding(start = 30.dp, end = 30.dp)
+                .shadow(
+                    elevation = 4.dp,
+                    ambientColor = Color.Black,
+                    spotColor = Color.Black,
+                    shape = RoundedCornerShape(30.dp)
+                ),
+            shape = RoundedCornerShape(30.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        ) {
+            Button(
+                onClick = {
+                    if (email.isBlank() || password.isBlank()) {
+                        errorMessage = "Заполните все поля"
+                        return@Button
+                    }
 
-        val buttonVisible = email.isNotBlank()
-        AnimatedVisibility(visible = buttonVisible) {
-
-            Card(
-                modifier = Modifier.fillMaxWidth()
-                    .align(alignment = Alignment.CenterHorizontally)
-                    .background(Transparent)
-                    .padding(start = 30.dp, end = 30.dp)
-                    .shadow(
-                        elevation = 4.dp,
-                        ambientColor = Color.Black,
-                        spotColor = Color.Black,
-                        shape = RoundedCornerShape(30.dp)
-                    )
-
-                    .clickable {
-                        //navController.navigate("players_list/компания")
-                    },
-                shape = RoundedCornerShape(30.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                    coroutineScope.launch {
+                        authManager.SignInWithEmail(email, password)
+                            .collect { response ->
+                                when (response) {
+                                    is AuthResponse.Succes -> {
+                                        Toast.makeText(context, "Успешный вход", Toast.LENGTH_LONG).show()
+                                        onDismiss()
+//                                        navController.navigate(Routes.MainContent.route) {
+//                                            popUpTo(Routes.MainClass.route) { inclusive = true }
+//                                        }
+                                    }
+                                    is AuthResponse.Error -> {
+                                        errorMessage = response.message ?: "Ошибка входа"
+                                    }
+                                }
+                            }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().background(BackgroundColor),
+                colors = ButtonDefaults.buttonColors(containerColor = Blue),
             ) {
-
-                Button(
-                    onClick = {
-                        if (email.isNotBlank()) {
-                            email = ""
-                        }
-                        onDismiss()
-                    },
-                    //contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxWidth().background(BackgroundColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = Blue),
-                ) {0
-
-
-                    Text(
-                        modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                        text = "Войти",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
+                Text(
+                    modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
+                    text = "Войти",
+                    style = TextStyle(
+                        color = Black,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.jura))
                     )
-                }
+                )
             }
+        }
+
+        Spacer(modifier = Modifier.height(5.dp))
+
+        TextButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { /* Переход к регистрации */ }
+        ) {
+            Text(
+                modifier = Modifier.fillMaxWidth(),
+                text = buildAnnotatedString {
+                    withStyle(
+                        style = SpanStyle(
+                            fontWeight = FontWeight.Light,
+                            color = Color.Gray
+                        )
+                    ) {
+                        append("Нет аккаунта?")
+                    }
+                    withStyle(
+                        style = SpanStyle(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Gray
+                        )
+                    ) {
+                        append("Регистрация")
+                    }
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(30.dp))
 
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color.Gray.copy(alpha = 0.2f))
+            )
+            Text(
+                modifier = Modifier.padding(horizontal = 10.dp),
+                text = "Войти с помощью:",
+                style = TextStyle(
+                    color = Black,
+                    fontSize = 16.sp,
+                    fontFamily = FontFamily(Font(R.font.jura))
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(1.dp)
+                    .background(Color.Gray.copy(alpha = 0.2f))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GoogleSignInButton(onClick = {
+                coroutineScope.launch {
+                    authManager.loginGoogleUser()
+                        .collect { response ->
+                            when (response) {
+                                is AuthResponse.Succes -> {
+                                    Toast.makeText(context, "Good", Toast.LENGTH_LONG).show()
+                                    onDismiss()
+//                                    navController.navigate(Routes.MainContent.route) {
+//                                        popUpTo(Routes.MainClass.route) { inclusive = true }
+//                                    }
+                                }
+                                is AuthResponse.Error -> {
+                                    errorMessage = response.message ?: "Ошибка входа через Google"
+                                }
+                            }
+                        }
+                }
+            })
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+    }
+}
+
+@Composable
+private fun GoogleSignInButton(onClick: () -> Unit){
+    OutlinedButton (onClick = onClick,
+        modifier = Modifier.background(BackgroundColor).fillMaxWidth().padding(start = 30.dp, end = 30.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = BackgroundColor),
+        shape = RoundedCornerShape(30.dp)
+    ) {
+        Image(
+            modifier = Modifier,
+            painter = painterResource(id = R.drawable.google_icon),
+            contentDescription = "GoogleIcon"
+        )
+
         Text(
-            modifier = Modifier.padding(top = 10.dp, bottom = 10.dp).align(Alignment.CenterHorizontally),
-            text = "Войти с помощью:",
+            modifier = Modifier.padding(horizontal = 10.dp),
+            text = "Google",
             style = TextStyle(
-                color = Black, fontSize = 16.sp, fontFamily = FontFamily(
+                color = Black, fontSize = 20.sp, fontFamily = FontFamily(
                     Font(R.font.jura)
                 )
             )
         )
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically ){
-
-            Button(onClick = onClick) {
-
-                Image(
-                    modifier = Modifier.padding(20.dp),
-                    painter = painterResource(id = R.drawable.google_icon),
-                    contentDescription = "GoogleIcon",
-                )
-            }
-
-
-            Image(
-                modifier = Modifier.padding(20.dp),
-                painter = painterResource(id = R.drawable.facebook_icon),
-                contentDescription = "FaceBookIcon"
-            )
-
-        }
     }
 }
 
