@@ -147,7 +147,7 @@ fun MainClass(){
                         containerColor = BackgroundColor,
                         sheetState = sheetState,
                         onDismissRequest = { isSheetOpen = false },
-                        modifier = Modifier.fillMaxHeight(0.8f) // Устанавливаем 70% высоты экрана
+                        modifier = Modifier.fillMaxHeight(0.9f) // Устанавливаем 70% высоты экрана
                     ) {
                         BottomSheetSignUpDialogContent() {
                             isSheetOpen = false

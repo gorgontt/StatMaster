@@ -244,7 +244,7 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
                     //contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxWidth().background(BackgroundColor),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue),
-                ) {
+                ) {0
 
 
                     Text(
@@ -279,7 +279,7 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
                 Image(
                     modifier = Modifier.padding(20.dp),
                     painter = painterResource(id = R.drawable.google_icon),
-                    contentDescription = "GoogleIcon"
+                    contentDescription = "GoogleIcon",
                 )
             }
 
@@ -293,3 +293,5 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit) {
         }
     }
 }
+
+
