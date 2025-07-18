@@ -153,9 +153,10 @@ fun MainClass(navController: NavController){
                         onDismissRequest = { isSheetOpen = false },
                         modifier = Modifier.fillMaxHeight() // Устанавливаем 70% высоты экрана
                     ) {
-                        BottomSheetSignUpDialogContent() {
-                            isSheetOpen = false
-                        }
+                        BottomSheetSignUpDialogContent(
+                            onDismiss = { isSheetOpen = false },
+                            navController = navController
+                        )
                     }
                 }
             }

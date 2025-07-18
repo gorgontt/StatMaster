@@ -224,9 +224,9 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit, navController: NavCont
                                     is AuthResponse.Succes -> {
                                         Toast.makeText(context, "Успешный вход", Toast.LENGTH_LONG).show()
                                         onDismiss()
-//                                        navController.navigate(Routes.MainContent.route) {
-//                                            popUpTo(Routes.MainClass.route) { inclusive = true }
-//                                        }
+                                        navController.navigate(Routes.MainContent.route) {
+                                            popUpTo(Routes.MainClass.route) { inclusive = true }
+                                        }
                                     }
                                     is AuthResponse.Error -> {
                                         errorMessage = response.message ?: "Ошибка входа"

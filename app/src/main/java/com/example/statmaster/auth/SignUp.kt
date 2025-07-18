@@ -53,9 +53,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.statmaster.AuthManager
 import com.example.statmaster.AuthResponse
 import com.example.statmaster.R
+import com.example.statmaster.Routes
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
@@ -72,7 +74,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit) {
+fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavController) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -232,13 +234,19 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit) {
 
                 Button(
                     onClick = {
-
                         authManager.SignUpWithEmail(email, password)
                             .onEach { result ->
-                                if (result is AuthResponse.Succes){
-                                    Log.d("auth", "Email success")
-                                }else{
-                                    Log.d("auth", "Email failed")
+                                when (result) {
+                                    is AuthResponse.Succes -> {
+                                        Log.d("auth", "Email success")
+                                        onDismiss()
+                                        navController.navigate(Routes.MainContent.route) {
+                                            popUpTo(Routes.MainClass.route) { inclusive = true }
+                                        }
+                                    }
+                                    is AuthResponse.Error -> {
+                                        Log.d("auth", "Email failed: ${result.message}")
+                                    }
                                 }
                             }.launchIn(coroutineScope)
                     },

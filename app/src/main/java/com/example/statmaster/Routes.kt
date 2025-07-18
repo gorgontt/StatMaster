@@ -13,6 +13,7 @@ sealed class Routes(val route: String) {
 
     object MainClass : Routes("main_class")
     object MainContent : Routes("main_content")
+    object LevelsTerVer : Routes("levels_ter_ver")
 
 
 
