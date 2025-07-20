@@ -54,7 +54,9 @@ import com.example.statmaster.LevelDocument
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
+import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
+import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.Transparent
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -86,6 +88,7 @@ fun LevelsTerVer(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { Text("Теория вероятностей") },
+                colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
                 navigationIcon = { /* ... */ }
             )
         },
@@ -117,7 +120,7 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
             .fillMaxWidth()
             .background(BackgroundColor)
             .verticalScroll(rememberScrollState())
-            .padding(top = 100.dp)
+            .padding()
     ) {
         levels.forEach { level ->
             LevelCard(level, navController)
@@ -127,6 +130,12 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
 
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
+    val cardColor = when (level.title) {
+        "Тест 1", "Тест 2", "Тест 3", "Тест 4", "Тест 5", "Тест 6" -> Blue
+        else -> BackgroundColor
+    }
+
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -142,18 +151,19 @@ fun LevelCard(level: Level, navController: NavController) {
                 navController.navigate("documentation_level/${level.id}")
             },
         shape = RoundedCornerShape(40.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+        colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
         Row(
             modifier = Modifier
-                .background(BackgroundColor)
+                .background(cardColor)
                 .fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             Column(
                 modifier = Modifier
-                    .padding(start = 40.dp, top = 10.dp, bottom = 10.dp)
+                    .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp)
                     .weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
