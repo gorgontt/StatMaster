@@ -8,28 +8,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
-import androidx.navigation.NavController
-import androidx.navigation.Navigation
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.rememberNavController
-import com.example.statmaster.auth.MainClass
-import com.example.statmaster.terver.LevelsTerVer
 import com.example.statmaster.ui.theme.StatMasterTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -42,10 +23,16 @@ import io.github.jan.supabase.gotrue.providers.Google
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -59,33 +46,6 @@ class MainActivity : ComponentActivity() {
                 Navigation()
             }
         }
-    }
-}
-
-
-@Composable
-fun Navigation() {
-    val navController = rememberNavController()
-    val context = LocalContext.current
-    val authManager = remember { AuthManager(context) }
-
-    // Проверяем авторизацию при запуске
-    LaunchedEffect(Unit) {
-        val session = authManager.supabase.auth.currentSessionOrNull()
-        if (session != null) {
-            navController.navigate(Routes.MainContent.route) {
-                popUpTo(Routes.MainClass.route) { inclusive = true }
-            }
-        }
-    }
-
-    NavHost(
-        navController = navController,
-        startDestination = Routes.MainClass.route
-    ) {
-        composable(Routes.MainClass.route) { MainClass(navController) }
-        composable(Routes.MainContent.route) { MainContent(navController) }
-        composable(Routes.LevelsTerVer.route) { LevelsTerVer(navController) }
     }
 }
 
@@ -104,7 +64,12 @@ class AuthManager(
     ){
         install(Realtime)
         install(Auth)
-        install(Postgrest)
+        install(Postgrest) {
+            serializer = KotlinXSerializer(Json {
+                ignoreUnknownKeys = true
+                isLenient = true
+            })
+        }
         httpConfig { this.install(WebSockets) }
     }
 
@@ -119,6 +84,15 @@ class AuthManager(
             emit(AuthResponse.Error(e.localizedMessage))
         }
     }
+
+//    init {
+//        supabase.postgrest.setSerializer(KotlinXSerializer(
+//            Json {
+//                ignoreUnknownKeys = true
+//                isLenient = true
+//            }
+//        ))
+//    }
 
     fun SignInWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
         try {
@@ -194,4 +168,25 @@ class AuthManager(
 
 
     }
+
+    @Serializable
+    data class TestLevel(val id: Int? = null)
+
+    suspend fun testConnection(): Boolean {
+        return try {
+            // Вариант 1: Простой запрос без limit
+            @Serializable
+            data class SimpleResponse(val id: Int)
+
+            supabase.postgrest["level"]
+                .select()  // Просто выбираем все поля (можно указать columns)
+                .decodeList<SimpleResponse>()
+                .isNotEmpty()
+        } catch (e: Exception) {
+            Log.e("Supabase", "Connection test failed", e)
+            false
+        }
+    }
+
+
 }

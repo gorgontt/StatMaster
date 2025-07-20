@@ -80,9 +80,9 @@ fun BottomSheetSignInDialogContent(onDismiss: () -> Unit, navController: NavCont
         if (session != null) {
             Toast.makeText(context, "Good", Toast.LENGTH_LONG).show()
 //            onDismiss()
-//            navController.navigate(Routes.MainContent.route) {
-//                popUpTo(Routes.MainClass.route) { inclusive = true }
-//            }
+            navController.navigate(Routes.MainContent.route) {
+                popUpTo(Routes.MainClass.route) { inclusive = true }
+            }
         }
     }
 

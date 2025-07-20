@@ -1,6 +1,7 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,10 +29,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -38,700 +47,141 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.example.statmaster.AuthManager
+import com.example.statmaster.Level
+import com.example.statmaster.LevelDocument
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
 
+@OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun LevelsTerVer(navController: NavController){
+fun LevelsTerVer(navController: NavController) {
+
+    val context = LocalContext.current
+    val authManager = remember { AuthManager(context) }
+    val levelRepository = remember { LevelRepository(authManager) }
+    val levels = remember { mutableStateListOf<Level>() }
+    var isLoading by remember { mutableStateOf(true) }
+    var connectionError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val isConnected = authManager.testConnection()
+        connectionError = !isConnected
+
+        if (isConnected) {
+            levels.addAll(levelRepository.getAllLevels())
+            Toast.makeText(context, "Connected ok", Toast.LENGTH_LONG).show()
+        }
+        isLoading = false
+    }
+
 
     Scaffold(
         modifier = Modifier.background(BackgroundColor),
         topBar = {
-            @OptIn(ExperimentalMaterial3Api::class)
             TopAppBar(
-                title = { Text("Теория вероятностей", fontSize = 22.sp) },
-                navigationIcon = {
-                    IconButton({ }) {
-                        Icon(
-                            painter =  painterResource(id = R.drawable.back_icon),
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                actions = {
-                    // IconButton({ }) { Icon(Icons.Filled.Info, contentDescription = "О приложении")}
-                    //IconButton({ }) {Icon(Icons.Filled.Search, contentDescription = "Поиск")}
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundColor,
-                    titleContentColor = DarkBlue,
-                    navigationIconContentColor = DarkBlue,
-                    actionIconContentColor = DarkBlue
-                )
+                title = { Text("Теория вероятностей") },
+                navigationIcon = { /* ... */ }
             )
         },
-
-        content = {
-           ContentTerVerLevels()
+        content = { padding ->
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator()
+                } else if (connectionError) {
+                    Text("Ошибка подключения")
+                } else if (levels.isEmpty()) {
+                    Text("Нет данных")
+                } else {
+                    ContentTerVerLevels(levels, navController)
+                }
+            }
         }
-
     )
-
 }
 
 @Composable
-fun ContentTerVerLevels(){
+fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
     Column(
         modifier = Modifier
-        .fillMaxHeight()
-        .fillMaxWidth()
-        .background(BackgroundColor)
-        .verticalScroll(rememberScrollState())
-        .offset(0.dp, 100.dp)) {
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
+            .fillMaxHeight()
+            .fillMaxWidth()
+            .background(BackgroundColor)
+            .verticalScroll(rememberScrollState())
+            .padding(top = 100.dp)
+    ) {
+        levels.forEach { level ->
+            LevelCard(level, navController)
         }
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(alignment = Alignment.CenterHorizontally)
-                .background(BackgroundColor)
-                .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(40.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(40.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ){
-
-            Row(modifier = Modifier.background(BackgroundColor).fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-
-                Column (modifier = Modifier.padding(start = 40.dp, top = 10.dp, bottom = 10.dp).weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-
-                    Text(
-                        modifier = Modifier,
-                        text = "Уровень 1",
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura_semibold)
-                            )
-                        )
-                    )
-
-                    Text(
-                        modifier = Modifier.padding(top = 5.dp),
-                        text = "Основы статистики",
-                        style = TextStyle(
-                            color = Black, fontSize = 14.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "GoogleIcon"
-                )
-
-            }
-
-
-        }
-
-
-
-
-
-
-
-
-
-
     }
+}
 
+@Composable
+fun LevelCard(level: Level, navController: NavController) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BackgroundColor)
+            .padding(top = 10.dp, bottom = 5.dp, start = 30.dp, end = 30.dp)
+            .shadow(
+                elevation = 4.dp,
+                ambientColor = Color.Black,
+                spotColor = Color.Black,
+                shape = RoundedCornerShape(40.dp)
+            )
+            .clickable {
+                navController.navigate("documentation_level/${level.id}")
+            },
+        shape = RoundedCornerShape(40.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .background(BackgroundColor)
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(start = 40.dp, top = 10.dp, bottom = 10.dp)
+                    .weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = level.title,
+                    style = TextStyle(
+                        color = Black,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.jura_semibold))
+                    ))
+                            Text(
+                            modifier = Modifier.padding(top = 5.dp),
+                    text = level.description,
+                    style = TextStyle(
+                        color = Black,
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily(Font(R.font.jura))
+                    ))
+            }
+            // Исправлено с is_completed на isCompleted
+            if (level.isCompleted) {
+                Image(
+                    modifier = Modifier.padding(end = 20.dp),
+                    painter = painterResource(id = R.drawable.tick_icon),
+                    contentDescription = "Completed"
+                )
+            }
+        }
+    }
 }
