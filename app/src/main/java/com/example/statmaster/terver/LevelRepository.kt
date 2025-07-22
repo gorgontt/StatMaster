@@ -31,7 +31,7 @@ class LevelRepository(private val authManager: AuthManager) {
     suspend fun getLevelDocument(levelId: Int): LevelDocument? {
         return try {
             authManager.supabase.postgrest
-                .from("level_documents?select=*&level_id=eq.$levelId")
+                .from("levels_documents?select=*&level_id=eq.$levelId")
                 .select()
                 .decodeSingleOrNull<LevelDocument>()
         } catch (e: Exception) {
