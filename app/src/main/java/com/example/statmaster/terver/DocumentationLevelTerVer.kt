@@ -43,6 +43,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -176,76 +177,94 @@ fun LevelDocumentContent(document: LevelDocument) {
             .background(BackgroundColor)
             .verticalScroll(rememberScrollState())
     ) {
-        // Отображаем заголовок
+        // Заголовок
         Text(
             text = parsedDocument.title,
             fontSize = 24.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
+            style = TextStyle(
+                color = Black,
+                fontSize = 24.sp,
+                fontFamily = FontFamily(Font(R.font.jura_semibold))),
+                modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally)
+            )
 
-        // Отображаем контент
-        parsedDocument.content.forEach { block ->
-            when (block) {
-                is ContentBlock.Paragraph -> {
-                    Text(
-                        text = block.text,
-                        fontSize = 16.sp,
-                        style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
+                    // Контент
+                    parsedDocument.content.forEachIndexed { index, block ->
+                when (block) {
+                    is ContentBlock.Paragraph -> {
+                        // Подзаголовок (начинается с -- )
+                        val isSubtitle = document.content.lines().getOrNull(index + 1)?.trim()?.startsWith("--") ?: false
+
+                        if (isSubtitle) {
+                            Text(
+                                text = block.text,
+                                fontSize = 20.sp,
+                                style = TextStyle(
+                                    color = Black,
+                                    fontSize = 20.sp,
+                                    fontFamily = FontFamily(Font(R.font.jura)),
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                modifier = Modifier
+                                    .padding(top = 16.dp, bottom = 8.dp)
+                                    .align(Alignment.CenterHorizontally)
                             )
-                        ),
-                        modifier = Modifier.padding(bottom = 8.dp).align(Alignment.CenterHorizontally)
-                    )
-                }
-                is ContentBlock.Quote -> {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(BackgroundColor)
-                            .shadow(
-                                elevation = 4.dp,
-                                ambientColor = Color.Black,
-                                spotColor = Color.Black,
-                                shape = RoundedCornerShape(10.dp)
-                            ),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(BackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(10.dp),
-                            text = block.text,
-                            fontSize = 16.sp,
-                            fontStyle = FontStyle.Italic,
-                            color = Black
+                        } else {
+                            Text(
+                                text = block.text,
+                                style = TextStyle(
+                                    color = Black,
+                                    fontSize = 18.sp,
+                                    fontFamily = FontFamily(Font(R.font.jura))
+                                ),
+                                modifier = Modifier
+                                    .padding(bottom = 8.dp)
+                                    .align(Alignment.Start)
+                            )
+                        }
+                    }
+                    //Определение (начинается с >)
+                    is ContentBlock.Quote -> {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(BackgroundColor)
+                                .shadow(
+                                    elevation = 4.dp,
+                                    ambientColor = Color.Black,
+                                    spotColor = Color.Black,
+                                    shape = RoundedCornerShape(10.dp)
+                                ),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(BackgroundColor),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                        ) {
+                            Text(
+                                modifier = Modifier.padding(10.dp),
+                                text = block.text,
+                                style = TextStyle(
+                                    color = Black,
+                                    fontSize = 18.sp,
+                                    fontFamily = FontFamily(Font(R.font.jura)),
+                                    fontStyle = FontStyle.Italic
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                    is ContentBlock.Image -> {
+                        AsyncImage(
+                            model = block.url,
+                            contentDescription = "Documentation image",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier
-                        .height(20.dp)
-                        .background(BackgroundColor))
-                }
-                is ContentBlock.Image -> {
-                    AsyncImage(
-                        model = block.url,
-                        contentDescription = "Documentation image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp)
-                    )
                 }
             }
-        }
-
-        Spacer(modifier = Modifier
-            .height(100.dp)
-            .background(BackgroundColor))
-
-
+                    Spacer(modifier = Modifier.height(100.dp))
     }
-
-
 }
 
 
@@ -263,15 +282,25 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
         val trimmedLine = line.trim()
         if (trimmedLine.isEmpty()) continue
 
-        // Проверяем, является ли строка цитатой (например, начинается с >)
-        if (trimmedLine.startsWith(">")) {
+        // Проверяем, является ли строка подзаголовком (начинается с --)
+        if (trimmedLine.startsWith("--")) {
+            // Если у нас есть определение, добавляем его
+            currentQuote?.let {
+                contentBlocks.add(ContentBlock.Quote(it.toString()))
+                currentQuote = null
+            }
+            // Добавляем определение с особым силем
+            contentBlocks.add(ContentBlock.Paragraph(trimmedLine.substring(2).trim()))
+        }
+        // Проверяем, является ли строка определением (начинается с >)
+        else if (trimmedLine.startsWith(">")) {
             if (currentQuote == null) {
                 currentQuote = StringBuilder(trimmedLine.substring(1).trim())
             } else {
-                currentQuote.append("\n").append(trimmedLine.substring(1).trim())
+                currentQuote!!.append("\n").append(trimmedLine.substring(1).trim())
             }
         } else {
-            // Если у нас есть накопленная цитата, добавляем её
+            // Если у нас есть определение, добавляем его
             currentQuote?.let {
                 contentBlocks.add(ContentBlock.Quote(it.toString()))
                 currentQuote = null
@@ -280,7 +309,7 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
         }
     }
 
-    // Добавляем последнюю цитату, если она есть
+    // Добавляем последнее определение, если оно есть
     currentQuote?.let {
         contentBlocks.add(ContentBlock.Quote(it.toString()))
     }
