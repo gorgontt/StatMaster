@@ -8,9 +8,13 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.navigation.NavController
 import com.example.statmaster.ui.theme.StatMasterTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -41,9 +45,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val authManager = AuthManager(this)
+
         setContent {
             StatMasterTheme {
-                Navigation()
+                // Проверяем, авторизован ли пользователь
+                val isLoggedIn by remember { mutableStateOf(authManager.supabase.auth.currentSessionOrNull() != null) }
+
+                if (isLoggedIn) {
+                    MainContent(NavController(this)) // Передаем NavController
+                } else {
+                    Navigation()
+                }
             }
         }
     }
