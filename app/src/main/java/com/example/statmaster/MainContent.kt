@@ -108,6 +108,7 @@ fun MainContent(navController: NavController){
             )
 
             DropdownMenu(
+                modifier = Modifier.background(BackgroundColor).fillMaxWidth(0.9f).align(Alignment.CenterHorizontally).padding(end = 30.dp),
                 expanded = expandedTerVer,
                 onDismissRequest = { expandedTerVer = false },
                 offset = DpOffset(x = 20.dp, y = 10.dp)
@@ -198,6 +199,7 @@ fun MainContent(navController: NavController){
             )
 
             DropdownMenu(
+                modifier = Modifier.background(BackgroundColor),
                 expanded = expandedStat,
                 onDismissRequest = { expandedStat = false },
                 offset = DpOffset(x = 20.dp, y = 10.dp)
