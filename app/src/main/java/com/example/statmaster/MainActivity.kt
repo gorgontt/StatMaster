@@ -29,7 +29,6 @@ import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.ktor.client.plugins.websocket.WebSockets
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -74,41 +73,15 @@ class AuthManager(
         httpConfig { this.install(WebSockets) }
     }
 
-    private suspend fun checkRateLimit() {
-        // Минимальная задержка между запросами (например, 2 секунды)
-        delay(2000)
-    }
-
     fun SignUpWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
         try {
-            // Добавляем задержку между запросами
-            delay(2000)
-
-            val result = supabase.auth.signUpWith(Email) {
+            supabase.auth.signUpWith(Email) {
                 email = emailValue
                 password = passwordValue
             }
-
-            if (result == null) {
-                emit(AuthResponse.Error("Не удалось зарегистрироваться"))
-                return@flow
-            }
-
             emit(AuthResponse.Succes)
-
         } catch (e: Exception) {
-            when {
-                e.message?.contains("rate limit") == true -> {
-                    emit(AuthResponse.Error("Слишком много запросов. Пожалуйста, подождите несколько минут."))
-                }
-                e.message?.contains("already registered") == true ||
-                        e.message?.contains("User already registered") == true -> {
-                    emit(AuthResponse.Error("Этот email уже зарегистрирован"))
-                }
-                else -> {
-                    emit(AuthResponse.Error(e.localizedMessage ?: "Ошибка регистрации: ${e.message}"))
-                }
-            }
+            emit(AuthResponse.Error(e.localizedMessage))
         }
     }
 
