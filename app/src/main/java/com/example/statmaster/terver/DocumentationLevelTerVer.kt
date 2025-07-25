@@ -186,7 +186,7 @@ fun LevelDocumentContent(document: LevelDocument) {
                 color = Black,
                 fontSize = 24.sp,
                 fontFamily = FontFamily(Font(R.font.jura_semibold))),
-                modifier = Modifier.padding(bottom = 16.dp).align(Alignment.CenterHorizontally)
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
             )
 
                     // Контент

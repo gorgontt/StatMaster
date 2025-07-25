@@ -59,16 +59,12 @@ import com.example.statmaster.ui.theme.Transparent
 fun MainContent(navController: NavController) {
 
     val terVerOptions = listOf(
-        "Основные понятия теории вероятностей",
-        "Комбинаторика для теории вероятностей",
-        "Условная вероятность и независимость",
-        "Случайные величины",
-        "Основные распределения вероятностей",
-        "Многомерные распределения",
-        "Предельные теоремы",
-        "Случайные процессы",
-        "Прикладные аспекты",
-        "Практикум и задачи"
+        "Случайные события",
+        "Теоремы вероятностей",
+        "Одномерные случайные величины",
+        "Многомерные случайные величины",
+        "Закон больших чисел и центральная предметная теорема",
+        "Математическая статистика"
     )
 
     val statOptions = listOf("Скопировать", "Вставить", "Настройки")
@@ -96,7 +92,7 @@ fun MainContent(navController: NavController) {
             options = terVerOptions,
             onItemSelected = { selectedOption ->
                 when (selectedOption) {
-                    "Основные понятия теории вероятностей" ->
+                    "Случайные события" ->
                         navController.navigate(Routes.LevelsTerVer.route)
                 }
             }
