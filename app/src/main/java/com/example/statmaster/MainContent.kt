@@ -2,6 +2,7 @@ package com.example.statmaster
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -37,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -44,6 +48,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
 import androidx.navigation.NavController
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
@@ -51,14 +56,24 @@ import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
 
 @Composable
-fun MainContent(navController: NavController){
+fun MainContent(navController: NavController) {
 
-    var expandedTerVer by remember { mutableStateOf(false) }
-    var expandedStat by remember { mutableStateOf(false) }
-    var selectedOption by remember { mutableStateOf("") }
-    val options = listOf("Option 1", "Option 2", "Option 3", "Option 4")
+    val terVerOptions = listOf(
+        "Основные понятия теории вероятностей",
+        "Комбинаторика для теории вероятностей",
+        "Условная вероятность и независимость",
+        "Случайные величины",
+        "Основные распределения вероятностей",
+        "Многомерные распределения",
+        "Предельные теоремы",
+        "Случайные процессы",
+        "Прикладные аспекты",
+        "Практикум и задачи"
+    )
 
-    Column (modifier = Modifier.fillMaxSize().background(BackgroundColor)){
+    val statOptions = listOf("Скопировать", "Вставить", "Настройки")
+
+    Column(modifier = Modifier.fillMaxSize().background(BackgroundColor)) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
@@ -76,152 +91,125 @@ fun MainContent(navController: NavController){
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth()
-                .background(BackgroundColor)
-                .padding(start = 30.dp, end = 30.dp)
-                .align(alignment = Alignment.CenterHorizontally)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(9.dp)
-                )
-
-                .clickable {
-                    expandedTerVer = true
-                },
-            shape = RoundedCornerShape(9.dp),
-            colors = CardDefaults.cardColors(BackgroundColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 9.dp)
-        ) {
-
-
-            Text(
-                modifier = Modifier.padding(top = 15.dp, bottom = 15.dp, start = 10.dp),
-                text = "Теория вероятностей",
-                style = TextStyle(
-                    color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                        Font(R.font.jura)
-                    )
-                )
-            )
-
-            DropdownMenu(
-                modifier = Modifier.background(BackgroundColor).fillMaxWidth(0.9f).align(Alignment.CenterHorizontally).padding(end = 30.dp),
-                expanded = expandedTerVer,
-                onDismissRequest = { expandedTerVer = false },
-                offset = DpOffset(x = 20.dp, y = 10.dp)
-            ) {
-                DropdownMenuItem(
-                    onClick = {navController.navigate(Routes.LevelsTerVer.route)},
-                    text = { Text("Основные понятия теории вероятностей") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = {  },
-                    text = { Text("Комбинаторика для теории вероятностей") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Условная вероятность и независимость") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Случайные величины") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Основные распределения вероятностей") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Многомерные распределения") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Предельные теоремы") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Случайные процессы") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Прикладные аспекты") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Практикум и задачи") }
-                )
+        CustomDropdownCard(
+            title = "Теория вероятностей",
+            options = terVerOptions,
+            onItemSelected = { selectedOption ->
+                when (selectedOption) {
+                    "Основные понятия теории вероятностей" ->
+                        navController.navigate(Routes.LevelsTerVer.route)
+                }
             }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth()
-                .background(BackgroundColor)
-                .align(alignment = Alignment.CenterHorizontally)
-                .padding(start = 30.dp, end = 30.dp)
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(9.dp)
-                )
-
-                .clickable {
-                    //navController.navigate("players_list/компания")
-                },
-            shape = RoundedCornerShape(9.dp),
-            colors = CardDefaults.cardColors(BackgroundColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-        ) {
+        )
 
 
-            Text(
-                modifier = Modifier.padding(top = 15.dp, bottom = 15.dp, start = 10.dp),
-                text = "Статистика",
-                style = TextStyle(
-                    color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-                        Font(R.font.jura)
-                    )
-                )
-            )
 
-            DropdownMenu(
-                modifier = Modifier.background(BackgroundColor),
-                expanded = expandedStat,
-                onDismissRequest = { expandedStat = false },
-                offset = DpOffset(x = 20.dp, y = 10.dp)
-            ) {
-                DropdownMenuItem(
-                    onClick = {},
-                    text = { Text("Скопировать") }
-                )
-                DropdownMenuItem(
-                    onClick = {  },
-                    text = { Text("Вставить") }
-                )
-                Divider()
-                DropdownMenuItem(
-                    onClick = { },
-                    text = { Text("Настройки") }
-                )
+        CustomDropdownCard(
+            title = "Статистика",
+            options = statOptions,
+            onItemSelected = { selectedOption ->
+                // Обработка выбора для статистики
             }
-        }
+        )
 
 
 
     }
 
 }
+
+@Composable
+fun CustomDropdownCard(
+    title: String,
+    options: List<String>,
+    onItemSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf("") }
+    val cardHorizontalPadding = 30.dp
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = cardHorizontalPadding),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Карточка
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 4.dp,
+                    ambientColor = Color.Black,
+                    spotColor = Color.Black,
+                    shape = RoundedCornerShape(9.dp)
+                )
+                .clickable { expanded = true },
+            shape = RoundedCornerShape(9.dp),
+            colors = CardDefaults.cardColors(BackgroundColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 9.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = TextStyle(
+                        color = Black,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.jura))
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Dropdown",
+                    tint = Black
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .background(BackgroundColor)
+                    .padding(start = 0.dp)
+                    .fillMaxWidth(0.85f)
+                    .align(Alignment.Center),
+
+            ) {
+                options.forEach { option ->
+                    DropdownMenuItem(
+                        onClick = {
+                            selectedOption = option
+                            onItemSelected(option)
+                            expanded = false
+                        },
+                        text = {
+                            Text(
+                                text = option,
+                                style = TextStyle(
+                                    fontFamily = FontFamily(Font(R.font.jura))
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (option != options.last()) {
+                        //Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+

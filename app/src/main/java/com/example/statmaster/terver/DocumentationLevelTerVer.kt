@@ -85,6 +85,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     Scaffold(
         topBar = {
             TopAppBar(
+                modifier = Modifier.background(BackgroundColor),
                 title = { Text("Документация уровня") },
                 navigationIcon = {
                     IconButton({ navController.popBackStack() }) {
@@ -173,8 +174,8 @@ fun LevelDocumentContent(document: LevelDocument) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = 100.dp, bottom = 50.dp, start = 16.dp, end = 16.dp)
             .background(BackgroundColor)
+            .padding(top = 100.dp, bottom = 50.dp, start = 16.dp, end = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         // Заголовок
