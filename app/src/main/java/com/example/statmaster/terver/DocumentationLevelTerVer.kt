@@ -52,7 +52,9 @@ import com.example.statmaster.AuthManager
 import com.example.statmaster.ContentBlock
 import com.example.statmaster.LevelDocument
 import com.example.statmaster.ParsedDocument
+import com.example.statmaster.QuestionWithAnswers
 import com.example.statmaster.R
+import com.example.statmaster.Test
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
@@ -73,11 +75,27 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var levelDocument by remember { mutableStateOf<LevelDocument?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    var isTest by remember { mutableStateOf(false) }
+    var testData by remember { mutableStateOf<Test?>(null) }
+    var questions by remember { mutableStateOf<List<QuestionWithAnswers>>(emptyList()) }
+    var userAnswers by remember { mutableStateOf<Map<Int, Int?>>(emptyMap()) }
+    var checkedAnswers by remember { mutableStateOf<Set<Int>>(emptySet()) }
+
     LaunchedEffect(levelId) {
         if (levelId != null) {
-            val doc = levelRepository.getLevelDocument(levelId)
-            println("Loaded document for level $levelId: $doc") // Добавьте эту строку
-            levelDocument = doc
+            // Проверяем, является ли уровень тестом
+            val test = levelRepository.getTestByLevelId(levelId)
+            if (test != null) {
+                isTest = true
+                testData = test
+                questions = levelRepository.getQuestionsWithAnswers(test.id)
+                // Инициализируем пустые ответы
+                userAnswers = questions.associate { it.id to null }
+            } else {
+                // Загружаем обычный документ
+                val doc = levelRepository.getLevelDocument(levelId)
+                levelDocument = doc
+            }
             isLoading = false
         }
     }
@@ -100,10 +118,23 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         content = {
             if (isLoading) {
                 CircularProgressIndicator()
+            } else if (isTest) {
+                TestContent(
+                    test = testData!!,
+                    questions = questions,
+                    userAnswers = userAnswers,
+                    checkedAnswers = checkedAnswers,
+                    onAnswerSelected = { questionId, answerId ->
+                        userAnswers = userAnswers + (questionId to answerId)
+                    },
+                    onCheckAnswers = {
+                        checkedAnswers = userAnswers.filterValues { it != null }.keys
+                    }
+                )
             } else if (levelDocument != null) {
                 LevelDocumentContent(levelDocument!!)
             } else {
-                Text("Документация не найдена")
+                Text("Контент не найден")
             }
         },
 
@@ -186,92 +217,98 @@ fun LevelDocumentContent(document: LevelDocument) {
                 color = Black,
                 fontSize = 24.sp,
                 fontFamily = FontFamily(Font(R.font.jura_semibold))),
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
-            )
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
+        )
 
-                    // Контент
-                    parsedDocument.content.forEachIndexed { index, block ->
-                when (block) {
-                    is ContentBlock.Paragraph -> {
-                        // Подзаголовок (начинается с -- )
-                        val isSubtitle = document.content.lines().getOrNull(index + 1)?.trim()?.startsWith("--") ?: false
+        // Контент
+        parsedDocument.content.forEachIndexed { index, block ->
+            when (block) {
+                is ContentBlock.Paragraph -> {
+                    // Проверяем, является ли блок подзаголовком (начинается с -- в оригинальном тексте)
+                    val isSubtitle = document.content.lines().any {
+                        it.trim().startsWith("--") && it.trim().substring(2).trim() == block.text
+                    }
 
-                        if (isSubtitle) {
-                            Text(
-                                text = block.text,
+                    if (isSubtitle) {
+                        Text(
+                            text = block.text,
+                            fontSize = 20.sp,
+                            style = TextStyle(
+                                color = Black,
                                 fontSize = 20.sp,
-                                style = TextStyle(
-                                    color = Black,
-                                    fontSize = 20.sp,
-                                    fontFamily = FontFamily(Font(R.font.jura)),
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier
-                                    .padding(top = 16.dp, bottom = 8.dp)
-                                    .align(Alignment.CenterHorizontally)
-                            )
-                        } else {
-                            Text(
-                                text = block.text,
-                                style = TextStyle(
-                                    color = Black,
-                                    fontSize = 18.sp,
-                                    fontFamily = FontFamily(Font(R.font.jura))
-                                ),
-                                modifier = Modifier
-                                    .padding(bottom = 8.dp)
-                                    .align(Alignment.Start)
-                            )
-                        }
-                    }
-                    //Определение (начинается с >)
-                    is ContentBlock.Quote -> {
-                        Card(
+                                fontFamily = FontFamily(Font(R.font.jura)),
+                                fontWeight = FontWeight.Bold
+                            ),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .background(BackgroundColor)
-                                .shadow(
-                                    elevation = 4.dp,
-                                    ambientColor = Color.Black,
-                                    spotColor = Color.Black,
-                                    shape = RoundedCornerShape(10.dp)
-                                ),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(BackgroundColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-                        ) {
-                            Text(
-                                modifier = Modifier.padding(10.dp),
-                                text = block.text,
-                                style = TextStyle(
-                                    color = Black,
-                                    fontSize = 18.sp,
-                                    fontFamily = FontFamily(Font(R.font.jura)),
-                                    fontStyle = FontStyle.Italic
-                                )
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(20.dp))
-                    }
-                    is ContentBlock.Image -> {
-                        AsyncImage(
-                            model = block.url,
-                            contentDescription = "Documentation image",
+                                .padding(top = 16.dp, bottom = 8.dp)
+                                .align(Alignment.Start)
+                        )
+                    } else {
+                        Text(
+                            text = block.text,
+                            style = TextStyle(
+                                color = Black,
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily(Font(R.font.jura))
+                            ),
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp)
+                                .padding(bottom = 8.dp)
+                                .align(Alignment.Start)
                         )
                     }
                 }
+                is ContentBlock.Quote -> {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(BackgroundColor)
+                            .shadow(
+                                elevation = 4.dp,
+                                ambientColor = Color.Black,
+                                spotColor = Color.Black,
+                                shape = RoundedCornerShape(10.dp)
+                            ),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = CardDefaults.cardColors(BackgroundColor),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+                    ) {
+                        Text(
+                            modifier = Modifier.padding(10.dp),
+                            text = block.text,
+                            style = TextStyle(
+                                color = Black,
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily(Font(R.font.jura)),
+                                fontStyle = FontStyle.Italic
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+                is ContentBlock.Image -> {
+                    AsyncImage(
+                        model = block.url,
+                        contentDescription = "Documentation image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp)
+                    )
+                }
             }
-                    Spacer(modifier = Modifier.height(100.dp))
+        }
+        Spacer(modifier = Modifier.height(100.dp))
     }
 }
 
 
 
 fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
-    val lines = content.lines()
+    val normalizedContent = content
+        .replace("", "⊂")
+        .replace("", "Ω")
+        .replace("", "∅")
+
+    val lines = normalizedContent.lines()
     if (lines.isEmpty()) return ParsedDocument("", listOf())
 
     val title = lines.first().trim()
@@ -283,30 +320,33 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
         val trimmedLine = line.trim()
         if (trimmedLine.isEmpty()) continue
 
-        // Проверяем, является ли строка подзаголовком (начинается с --)
-        if (trimmedLine.startsWith("--")) {
-            // Если у нас есть определение, добавляем его
-            currentQuote?.let {
-                contentBlocks.add(ContentBlock.Quote(it.toString()))
-                currentQuote = null
+        when {
+            // Обработка подзаголовков (начинаются с --)
+            trimmedLine.startsWith("--") -> {
+                // Если есть текущее определение, добавляем его
+                currentQuote?.let {
+                    contentBlocks.add(ContentBlock.Quote(it.toString()))
+                    currentQuote = null
+                }
+                // Добавляем подзаголовок
+                contentBlocks.add(ContentBlock.Paragraph(trimmedLine.substring(2).trim()))
             }
-            // Добавляем определение с особым силем
-            contentBlocks.add(ContentBlock.Paragraph(trimmedLine.substring(2).trim()))
-        }
-        // Проверяем, является ли строка определением (начинается с >)
-        else if (trimmedLine.startsWith(">")) {
-            if (currentQuote == null) {
-                currentQuote = StringBuilder(trimmedLine.substring(1).trim())
-            } else {
-                currentQuote!!.append("\n").append(trimmedLine.substring(1).trim())
+            // Обработка определений (начинаются с >)
+            trimmedLine.startsWith(">") -> {
+                if (currentQuote == null) {
+                    currentQuote = StringBuilder(trimmedLine.substring(1).trim())
+                } else {
+                    currentQuote!!.append("\n").append(trimmedLine.substring(1).trim())
+                }
             }
-        } else {
-            // Если у нас есть определение, добавляем его
-            currentQuote?.let {
-                contentBlocks.add(ContentBlock.Quote(it.toString()))
-                currentQuote = null
+            else -> {
+                // Если есть текущее определение, добавляем его
+                currentQuote?.let {
+                    contentBlocks.add(ContentBlock.Quote(it.toString()))
+                    currentQuote = null
+                }
+                contentBlocks.add(ContentBlock.Paragraph(trimmedLine))
             }
-            contentBlocks.add(ContentBlock.Paragraph(trimmedLine))
         }
     }
 
@@ -321,4 +361,135 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
     }
 
     return ParsedDocument(title, contentBlocks)
+}
+
+@Composable
+fun TestContent(
+    test: Test,
+    questions: List<QuestionWithAnswers>,
+    userAnswers: Map<Int, Int?>,
+    checkedAnswers: Set<Int>,
+    onAnswerSelected: (Int, Int) -> Unit,
+    onCheckAnswers: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundColor)
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(
+            text = test.title,
+            style = TextStyle(
+                fontSize = 24.sp,
+                fontFamily = FontFamily(Font(R.font.jura_semibold))),
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+                    questions.forEach { question ->
+                QuestionCard(
+                    question = question,
+                    selectedAnswerId = userAnswers[question.id],
+                    checked = checkedAnswers.contains(question.id),
+                    onAnswerSelected = { answerId ->
+                        onAnswerSelected(question.id, answerId)
+                    }
+                )
+            }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                    onClick = onCheckAnswers,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+        ) {
+            Text("Проверить ответы")
+        }
+
+        Spacer(modifier = Modifier.height(100.dp))
+    }
+}
+
+@Composable
+fun QuestionCard(
+    question: QuestionWithAnswers,
+    selectedAnswerId: Int?,
+    checked: Boolean,
+    onAnswerSelected: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = BackgroundColor)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = question.questionText,
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    fontFamily = FontFamily(Font(R.font.jura_semibold))),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            question.answers.forEach { answer ->
+                val isSelected = selectedAnswerId == answer.id
+                val isCorrect = answer.isCorrect
+                val showCorrectness = checked && (isSelected || isCorrect)
+
+                val backgroundColor = when {
+                    !showCorrectness -> BackgroundColor
+                    isCorrect -> Color.Green.copy(alpha = 0.2f)
+                    isSelected && !isCorrect -> Color.Red.copy(alpha = 0.2f)
+                    else -> BackgroundColor
+                }
+
+                val borderColor = when {
+                    isSelected -> Blue
+                    else -> Color.LightGray
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .border(1.dp, borderColor, RoundedCornerShape(4.dp))
+                        .background(backgroundColor, RoundedCornerShape(4.dp))
+                        .clickable(
+                            enabled = !checked,
+                            onClick = { onAnswerSelected(answer.id) }
+                        )
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = answer.answerText,
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontFamily = FontFamily(Font(R.font.jura))
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+fun calculateScore(questions: List<QuestionWithAnswers>, userAnswers: Map<Int, Int?>): Pair<Int, Int> {
+    var correct = 0
+    questions.forEach { question ->
+        val selectedAnswerId = userAnswers[question.id]
+        if (selectedAnswerId != null) {
+            val selectedAnswer = question.answers.find { it.id == selectedAnswerId }
+            if (selectedAnswer?.isCorrect == true) {
+                correct++
+            }
+        }
+    }
+    return Pair(correct, questions.size)
 }
