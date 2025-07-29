@@ -1,5 +1,6 @@
 package com.example.statmaster.terver
 
+import android.content.Context
 import android.util.Log
 import com.example.statmaster.Answer
 import com.example.statmaster.AuthManager
@@ -16,6 +17,7 @@ class LevelRepository(private val authManager: AuthManager) {
 
     suspend fun getAllLevels(): List<Level> {
         return try {
+
             authManager.supabase.postgrest["level"]  // Исправлено на "level"
                 .select(
                     columns = Columns.list("id", "title", "description", "order_number", "is_completed")
@@ -119,5 +121,17 @@ class LevelRepository(private val authManager: AuthManager) {
             emptyList()
         }
     }
+
+    fun markLevelAsCompleted(levelId: Int) {
+        // Здесь реализуйте сохранение состояния в базу данных или SharedPreferences
+        // Например:
+        val sharedPref = authManager.context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+        with(sharedPref.edit()) {
+            putBoolean("level_$levelId", true)
+            apply()
+        }
+    }
+
+
 }
 

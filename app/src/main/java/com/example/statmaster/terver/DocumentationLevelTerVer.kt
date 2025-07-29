@@ -2,6 +2,12 @@ package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -61,6 +70,7 @@ import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.Green
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +90,22 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var checkedAnswers by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showAnswerAllQuestionsWarning by remember { mutableStateOf(false) }
 
+    var connectionError by remember { mutableStateOf(false) }
+
+    // Состояние для анимации прогресса (0..1)
+    val progress = remember { Animatable(0f) }
+
+    // Флаг для управления бесконечной анимацией
+    var shouldAnimate by remember { mutableStateOf(true) }
+
+    val rotation = remember { Animatable(0f) }
+    val infiniteAnimation = remember {
+        infiniteRepeatable<Float>(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        )
+    }
+
     // Проверяем, ответил ли пользователь на все вопросы
     val allQuestionsAnswered = remember(userAnswers, questions) {
         userAnswers.size == questions.size && userAnswers.values.all { it != null }
@@ -92,18 +118,27 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        // Запускаем бесконечное вращение
+        rotation.animateTo(360f, infiniteAnimation)
+    }
+
     LaunchedEffect(levelId) {
         if (levelId != null) {
-            val test = levelRepository.getTestByLevelId(levelId)
-            if (test != null) {
-                isTest = true
-                testData = test
-                questions = levelRepository.getQuestionsWithAnswers(test.id)
-                userAnswers = questions.associate { it.id to null }
-            } else {
-                levelDocument = levelRepository.getLevelDocument(levelId)
+            try {
+                val test = levelRepository.getTestByLevelId(levelId)
+                if (test != null) {
+                    isTest = true
+                    testData = test
+                    questions = levelRepository.getQuestionsWithAnswers(test.id)
+                    userAnswers = questions.associate { it.id to null }
+                } else {
+                    levelDocument = levelRepository.getLevelDocument(levelId)
+                }
+            } finally {
+                isLoading = false
+                rotation.stop() // Останавливаем анимацию после загрузки
             }
-            isLoading = false
         }
     }
 
@@ -124,7 +159,12 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         },
         content = {
             if (isLoading) {
-                CircularProgressIndicator()
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    RotatingLoader(rotation.value)
+                }
             } else if (isTest) {
                 Column(
                     modifier = Modifier
@@ -265,9 +305,16 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                     ) {
                         Button(
-                            onClick = { navController.popBackStack() },
+                            onClick = {
+                                // Сохраняем пройденный уровень
+                                levelId?.let { id ->
+                                    levelRepository.markLevelAsCompleted(id)
+                                }
+                                // Возвращаемся на экран уровней
+                                navController.popBackStack()
+                            },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                            colors = ButtonDefaults.buttonColors(containerColor = BackgroundColor)
                         ) {
                             Text(
                                 modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
@@ -283,6 +330,25 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             }
         }
     )
+}
+
+@Composable
+fun RotatingLoader(rotation: Float) {
+    Canvas(modifier = Modifier.size(70.dp)) {
+        // Фоновый круг
+        drawCircle(
+            color = BackgroundColor,
+            radius = size.minDimension / 2 - 4.dp.toPx()
+        )
+        // Вращающийся индикатор
+        drawArc(
+            color = Blue,
+            startAngle = rotation - 90f,
+            sweepAngle = 90f,
+            useCenter = false,
+            style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+        )
+    }
 }
 
 @Composable
@@ -507,13 +573,15 @@ fun QuestionCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = question.questionText,
-                style = TextStyle(
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily(Font(R.font.jura_semibold))),
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+
+                Text(
+                    text = question.questionText,
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontFamily = FontFamily(Font(R.font.jura_semibold))
+                    ),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
             question.answers.forEach { answer ->
                 val isSelected = selectedAnswerId == answer.id

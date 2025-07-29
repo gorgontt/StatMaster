@@ -1,44 +1,52 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
-import android.widget.Toast
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -47,23 +55,21 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
 import com.example.statmaster.AuthManager
 import com.example.statmaster.Level
-import com.example.statmaster.LevelDocument
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
-import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
-import com.example.statmaster.ui.theme.Transparent
+import com.example.statmaster.ui.theme.White
+import kotlinx.coroutines.launch
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun LevelsTerVer(navController: NavController) {
-
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
     val levelRepository = remember { LevelRepository(authManager) }
@@ -71,17 +77,36 @@ fun LevelsTerVer(navController: NavController) {
     var isLoading by remember { mutableStateOf(true) }
     var connectionError by remember { mutableStateOf(false) }
 
+    // Состояние для анимации прогресса (0..1)
+    val progress = remember { Animatable(0f) }
+
+    // Флаг для управления бесконечной анимацией
+    var shouldAnimate by remember { mutableStateOf(true) }
+
     LaunchedEffect(Unit) {
-        val isConnected = authManager.testConnection()
-        connectionError = !isConnected
-
-        if (isConnected) {
-            levels.addAll(levelRepository.getAllLevels())
-            Toast.makeText(context, "Connected ok", Toast.LENGTH_LONG).show()
+        // Запускаем бесконечную анимацию в фоне
+        launch {
+            while (shouldAnimate) {
+                progress.animateTo(0.8f, animationSpec = tween(800))
+                progress.animateTo(0.2f, animationSpec = tween(800))
+            }
         }
-        isLoading = false
-    }
 
+        // Параллельно загружаем данные
+        launch {
+            val isConnected = authManager.testConnection()
+            connectionError = !isConnected
+
+            if (isConnected) {
+                levels.addAll(levelRepository.getAllLevels())
+            }
+
+            // Завершаем анимацию
+            shouldAnimate = false
+            progress.animateTo(1f, animationSpec = tween(300))
+            isLoading = false
+        }
+    }
 
     Scaffold(
         modifier = Modifier.background(BackgroundColor),
@@ -99,7 +124,12 @@ fun LevelsTerVer(navController: NavController) {
                     .fillMaxSize()
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator()
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        LoadingIndicator(progress.value)
+                    }
                 } else if (connectionError) {
                     Text("Ошибка подключения")
                 } else if (levels.isEmpty()) {
@@ -111,6 +141,30 @@ fun LevelsTerVer(navController: NavController) {
         }
     )
 }
+
+@Composable
+fun LoadingIndicator(progress: Float) {
+    val sweepAngle = progress * 360f
+
+    Canvas(modifier = Modifier.size(70.dp)) {
+        // Фоновый круг
+        drawCircle(
+            color = BackgroundColor,
+            radius = size.minDimension / 2 - 4.dp.toPx()
+        )
+
+        // Прогресс
+        drawArc(
+            color = Blue,
+            startAngle = -90f, // Начинаем сверху
+            sweepAngle = sweepAngle,
+            useCenter = false,
+            style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
+        )
+    }
+}
+
+private const val DURATION = 1000
 
 @Composable
 fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
