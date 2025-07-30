@@ -8,26 +8,18 @@ import com.example.statmaster.Level
 import com.example.statmaster.LevelDocument
 import com.example.statmaster.QuestionWithAnswers
 import com.example.statmaster.Test
-import com.google.android.gms.drive.query.Filters.eq
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 
 class LevelRepository(private val authManager: AuthManager) {
 
     suspend fun getAllLevels(): List<Level> {
         return try {
-
-            authManager.supabase.postgrest["level"]  // Исправлено на "level"
-                .select(
-                    columns = Columns.list("id", "title", "description", "order_number", "is_completed")
-                ) {
+            authManager.supabase.postgrest["level"]
+                .select {
                     order("order_number", Order.ASCENDING)
                 }
                 .decodeList<Level>()
-                .also {
-                    Log.d("Supabase", "Loaded ${it.size} levels from 'level' table")
-                }
         } catch (e: Exception) {
             Log.e("Supabase", "Error loading levels", e)
             emptyList()
@@ -49,7 +41,7 @@ class LevelRepository(private val authManager: AuthManager) {
 
     suspend fun getTestByLevelId(levelId: Int): Test? {
         return try {
-            // Сначала проверим существование уровня
+            // Проверим существование уровня
             val levelExists = authManager.supabase.postgrest
                 .from("level?id=eq.$levelId")
                 .select()
@@ -60,7 +52,7 @@ class LevelRepository(private val authManager: AuthManager) {
                 return null
             }
 
-            // Затем получаем тест
+            // Получаем тест
             authManager.supabase.postgrest
                 .from("test?select=id,level_id,title,description&level_id=eq.$levelId")
                 .select()
@@ -123,12 +115,65 @@ class LevelRepository(private val authManager: AuthManager) {
     }
 
     fun markLevelAsCompleted(levelId: Int) {
-        // Здесь реализуйте сохранение состояния в базу данных или SharedPreferences
-        // Например:
-        val sharedPref = authManager.context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+        val sharedPref =
+            authManager.context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putBoolean("level_$levelId", true)
             apply()
+        }
+    }
+
+
+    suspend fun updateLevelCompletion(levelId: Int, isCompleted: Boolean): Boolean {
+        return try {
+            Log.d("LevelRepository", "Attempting to update level $levelId to completed=$isCompleted")
+
+            val response = authManager.supabase.postgrest
+                .from("level")
+                .update(
+                    mapOf("is_completed" to isCompleted)
+                ) {
+                    filter {
+                        eq("id", levelId)
+                    }
+                }
+
+            Log.d("LevelRepository", "Update performed for level $levelId")
+
+            true
+        } catch (e: Exception) {
+            Log.e("LevelRepository", "Error updating level", e)
+            false
+        }
+    }
+
+    // Добавим метод для получения одного уровня
+    suspend fun getLevel(levelId: Int): Level? {
+        return try {
+            authManager.supabase.postgrest
+                .from("level")
+                .select {
+                    filter {
+                        eq("id", levelId)
+                    }
+                }
+                .decodeSingle<Level>()
+        } catch (e: Exception) {
+            Log.e("LevelRepository", "Error getting level", e)
+            null
+        }
+    }
+
+
+    suspend fun getLevelById(levelId: Int): Level? {
+        return try {
+            authManager.supabase.postgrest
+                .from("level?id=eq.$levelId")
+                .select()
+                .decodeSingleOrNull<Level>()
+        } catch (e: Exception) {
+            Log.e("Supabase", "Error loading level", e)
+            null
         }
     }
 

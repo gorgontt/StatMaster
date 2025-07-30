@@ -1,6 +1,7 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -19,11 +20,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,8 +43,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -63,7 +70,9 @@ import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.White
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,7 +82,7 @@ fun LevelsTerVer(navController: NavController) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
     val levelRepository = remember { LevelRepository(authManager) }
-    val levels = remember { mutableStateListOf<Level>() }
+    var levels = remember { mutableStateListOf<Level>() }
     var isLoading by remember { mutableStateOf(true) }
     var connectionError by remember { mutableStateOf(false) }
 
@@ -82,6 +91,76 @@ fun LevelsTerVer(navController: NavController) {
 
     // Флаг для управления бесконечной анимацией
     var shouldAnimate by remember { mutableStateOf(true) }
+
+    //состояние для принудительного обновления
+    var refreshTrigger by remember { mutableStateOf(0) }
+
+
+    var levelsState by remember { mutableStateOf(emptyList<Level>()) }
+
+    val coroutineScope = rememberCoroutineScope()
+
+//    LaunchedEffect(navController) {
+//        snapshotFlow { navController.currentBackStackEntry }.collect {
+//            if (it?.destination?.route == "LevelsTerVer") {
+//                // Перезагружаем уровни при возврате
+//                levels.clear()
+//                levels.addAll(levelRepository.getAllLevels())
+//            }
+//        }
+//    }
+
+    LaunchedEffect(Unit) {
+        // Первоначальная загрузка
+        levels = withContext(Dispatchers.IO) {
+            levelRepository.getAllLevels().toMutableStateList()
+        }
+
+        // Подписка на обновления
+        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Int>(
+            "updated_level",
+            -1
+        )?.collect { updatedId ->
+            if (updatedId > 0) {
+                Log.d("LevelsTerVer", "Received update for level $updatedId")
+                val updatedLevels = withContext(Dispatchers.IO) {
+                    levelRepository.getAllLevels()
+                }
+                levels.clear()
+                levels.addAll(updatedLevels)
+                navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("updated_level")
+            }
+        }
+    }
+
+//    LaunchedEffect(navController) {
+//        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>("shouldRefresh", false)
+//            ?.collect { shouldRefresh ->
+//                if (shouldRefresh) {
+//                    refreshTrigger++
+//                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("shouldRefresh")
+//                }
+//            }
+//    }
+
+    LaunchedEffect(refreshTrigger) {
+        if (refreshTrigger > 0) {
+            levels.clear()
+            val loadedLevels = levelRepository.getAllLevels()
+            levels.addAll(loadedLevels)
+        }
+    }
+
+//    LaunchedEffect(Unit) {
+//        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>("shouldRefresh", false)
+//            ?.collect { shouldRefresh ->
+//                if (shouldRefresh) {
+//                    levels.clear()
+//                    levels.addAll(levelRepository.getAllLevels())
+//                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("shouldRefresh")
+//                }
+//            }
+//    }
 
     LaunchedEffect(Unit) {
         // Запускаем бесконечную анимацию в фоне
@@ -138,8 +217,31 @@ fun LevelsTerVer(navController: NavController) {
                     ContentTerVerLevels(levels, navController)
                 }
             }
-        }
-    )
+        },
+
+                bottomBar = {
+                    BottomAppBar(
+                        containerColor = BackgroundColor,
+                        modifier = Modifier.height(130.dp)
+                    ) {
+
+                        Button(
+                            onClick = {
+                                coroutineScope.launch {
+                                    val testLevels = levelRepository.getAllLevels()
+                                    Log.d(
+                                        "LevelCheck",
+                                        "Current levels: ${testLevels.joinToString { it.id.toString() + "=" + it.isCompleted }}"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text("Проверить статусы уровней")
+                        }
+                    }
+                })
+
 }
 
 @Composable
@@ -178,14 +280,17 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
     ) {
         levels.forEach { level ->
             LevelCard(level, navController)
+
         }
     }
 }
 
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
-    val cardColor = when (level.title) {
-        "Тест 1", "Тест 2", "Тест 3", "Тест 4", "Тест 5", "Тест 6" -> Blue
+
+    val cardColor = when {
+        level.isCompleted -> Green.copy(alpha = 0.3f)
+        level.title.startsWith("Тест") -> Blue
         else -> BackgroundColor
     }
 
@@ -238,7 +343,6 @@ fun LevelCard(level: Level, navController: NavController) {
                         fontFamily = FontFamily(Font(R.font.jura))
                     ))
             }
-            // Исправлено с is_completed на isCompleted
             if (level.isCompleted) {
                 Image(
                     modifier = Modifier.padding(end = 20.dp),

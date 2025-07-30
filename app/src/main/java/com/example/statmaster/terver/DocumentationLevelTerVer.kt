@@ -1,6 +1,7 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -41,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,7 +72,10 @@ import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.Green
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,14 +94,89 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var userAnswers by remember { mutableStateOf<Map<Int, Int?>>(emptyMap()) }
     var checkedAnswers by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showAnswerAllQuestionsWarning by remember { mutableStateOf(false) }
+    var showError by remember { mutableStateOf(false) }
 
-    var connectionError by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
-    // Состояние для анимации прогресса (0..1)
-    val progress = remember { Animatable(0f) }
+    var isLevelCompleted by remember { mutableStateOf(false) }
 
-    // Флаг для управления бесконечной анимацией
-    var shouldAnimate by remember { mutableStateOf(true) }
+    val onLevelCompleted = {
+        navController.popBackStack()
+        // Сообщаем родительскому экрану, что нужно обновить уровни
+        navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+    }
+
+
+
+//    fun completeLevel() {
+//        coroutineScope.launch {
+//            try {
+//                // Обновляем уровень в базе данных
+//                levelId?.let { id ->
+//                    levelRepository.updateLevelCompletion(id, true)
+//                    levelRepository.markLevelAsCompleted(id)
+//                }
+//
+//                // Возвращаемся на предыдущий экран с флагом обновления
+//                navController.previousBackStackEntry?.savedStateHandle?.set(
+//                    "level_completed",
+//                    levelId ?: -1
+//                )
+//                navController.popBackStack()
+//            } catch (e: Exception) {
+//                // Обработка ошибок
+//                Log.e("DocumentationLevel", "Error completing level", e)
+//            }
+//        }
+//    }
+
+    val completeLevel: () -> Unit = {
+        coroutineScope.launch {
+            if (levelId == null) {
+                Log.e("CompleteLevel", "levelId is null")
+                return@launch
+            }
+
+            isLoading = true
+            showError = false
+
+            try {
+                Log.d("CompleteLevel", "Starting level completion for $levelId")
+
+                // 1. Обновляем в базе данных
+                val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
+                Log.d("CompleteLevel", "Update success: $updateSuccess")
+
+                if (!updateSuccess) {
+                    showError = true
+                    return@launch
+                }
+
+                // 2. Обновляем локальное хранилище
+                levelRepository.markLevelAsCompleted(levelId)
+                Log.d("CompleteLevel", "Local storage updated")
+
+                // 3. Обновляем UI состояние
+                isLevelCompleted = true
+                Log.d("CompleteLevel", "UI state updated")
+
+                // 4. Возвращаемся с обновленными данными
+                navController.previousBackStackEntry?.savedStateHandle?.set(
+                    "updated_level",
+                    levelId
+                )
+                Log.d("CompleteLevel", "Navigation state updated")
+
+                navController.popBackStack()
+
+            } catch (e: Exception) {
+                Log.e("CompleteLevel", "Error completing level", e)
+                showError = true
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     val rotation = remember { Animatable(0f) }
     val infiniteAnimation = remember {
@@ -126,6 +206,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     LaunchedEffect(levelId) {
         if (levelId != null) {
             try {
+                val level = levelRepository.getLevelById(levelId)
+                isLevelCompleted = level?.isCompleted ?: false
+
                 val test = levelRepository.getTestByLevelId(levelId)
                 if (test != null) {
                     isTest = true
@@ -137,7 +220,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 }
             } finally {
                 isLoading = false
-                rotation.stop() // Останавливаем анимацию после загрузки
+                rotation.stop()
             }
         }
     }
@@ -305,24 +388,34 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                     ) {
                         Button(
-                            onClick = {
-                                // Сохраняем пройденный уровень
-                                levelId?.let { id ->
-                                    levelRepository.markLevelAsCompleted(id)
-                                }
-                                // Возвращаемся на экран уровней
-                                navController.popBackStack()
-                            },
+                            onClick = completeLevel,
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = BackgroundColor)
+                            enabled = !isLoading,
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isLevelCompleted) Green.copy(alpha = 0.3f) else BackgroundColor)
                         ) {
-                            Text(
-                                modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                                text = "Завершить урок",
-                                style = TextStyle(
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
                                     color = Black,
-                                    fontSize = 20.sp,
-                                    fontFamily = FontFamily(Font(R.font.jura)))
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text(
+                                    modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
+                                    text = if (isLevelCompleted) "Урок пройден" else "Завершить урок",
+                                    style = TextStyle(
+                                        color = Black,
+                                        fontSize = 20.sp,
+                                        fontFamily = FontFamily(Font(R.font.jura))
+                                    )
+                                )
+                            }
+                        }
+                        if (showError) {
+                            Text(
+                                text = "Ошибка при завершении урока",
+                                color = Color.Red,
+                                modifier = Modifier.padding(16.dp)
                             )
                         }
                     }

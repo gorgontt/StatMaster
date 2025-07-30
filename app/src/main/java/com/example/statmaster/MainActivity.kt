@@ -55,7 +55,7 @@ sealed interface AuthResponse{
 }
 
 class AuthManager(
-    private val context: Context
+    val context: Context
 ){
     @OptIn(SupabaseInternal::class)
     val supabase = createSupabaseClient(
