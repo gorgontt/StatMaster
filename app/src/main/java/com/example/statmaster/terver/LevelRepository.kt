@@ -194,6 +194,24 @@ class LevelRepository(private val authManager: AuthManager,  private val context
         }
     }
 
+    suspend fun getTestResults(levelId: Int): Pair<Int, Int>? {
+        return try {
+            val test = getTestByLevelId(levelId) ?: return null
+            val questions = getQuestionsWithAnswers(test.id)
+
+            val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+            val userAnswers = questions.associate { q ->
+                q.id to sharedPref.getInt("answer_${levelId}_${q.id}", -1)
+            }
+
+            if (userAnswers.values.any { it == -1 }) null
+            else calculateScore(questions, userAnswers)
+        } catch (e: Exception) {
+            Log.e("LevelRepository", "Error getting test results", e)
+            null
+        }
+    }
+
 
 }
 

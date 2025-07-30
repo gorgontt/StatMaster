@@ -4,11 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.VectorConverter
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -18,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,7 +27,6 @@ import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,16 +34,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -60,6 +51,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -70,10 +62,7 @@ import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.Green
-import com.example.statmaster.ui.theme.White
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,15 +90,6 @@ fun LevelsTerVer(navController: NavController) {
 
     val coroutineScope = rememberCoroutineScope()
 
-//    LaunchedEffect(navController) {
-//        snapshotFlow { navController.currentBackStackEntry }.collect {
-//            if (it?.destination?.route == "LevelsTerVer") {
-//                // Перезагружаем уровни при возврате
-//                levels.clear()
-//                levels.addAll(levelRepository.getAllLevels())
-//            }
-//        }
-//    }
 
     LaunchedEffect(Unit) {
         navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>(
@@ -127,15 +107,7 @@ fun LevelsTerVer(navController: NavController) {
             }
         }
     }
-//    LaunchedEffect(navController) {
-//        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>("shouldRefresh", false)
-//            ?.collect { shouldRefresh ->
-//                if (shouldRefresh) {
-//                    refreshTrigger++
-//                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("shouldRefresh")
-//                }
-//            }
-//    }
+
 
     LaunchedEffect(refreshTrigger) {
         if (refreshTrigger > 0) {
@@ -144,17 +116,6 @@ fun LevelsTerVer(navController: NavController) {
             levels.addAll(loadedLevels)
         }
     }
-
-//    LaunchedEffect(Unit) {
-//        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>("shouldRefresh", false)
-//            ?.collect { shouldRefresh ->
-//                if (shouldRefresh) {
-//                    levels.clear()
-//                    levels.addAll(levelRepository.getAllLevels())
-//                    navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("shouldRefresh")
-//                }
-//            }
-//    }
 
     LaunchedEffect(Unit) {
         // Запускаем бесконечную анимацию в фоне
@@ -210,31 +171,10 @@ fun LevelsTerVer(navController: NavController) {
                 } else {
                     ContentTerVerLevels(levels, navController)
                 }
+
             }
-        },
+        })
 
-                bottomBar = {
-                    BottomAppBar(
-                        containerColor = BackgroundColor,
-                        modifier = Modifier.height(130.dp)
-                    ) {
-
-                        Button(
-                            onClick = {
-                                coroutineScope.launch {
-                                    val testLevels = levelRepository.getAllLevels()
-                                    Log.d(
-                                        "LevelCheck",
-                                        "Current levels: ${testLevels.joinToString { it.id.toString() + "=" + it.isCompleted }}"
-                                    )
-                                }
-                            },
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text("Проверить статусы уровней")
-                        }
-                    }
-                })
 
 }
 
@@ -281,19 +221,47 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
 
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
-
     val context = LocalContext.current
+    val levelRepository = remember { LevelRepository(AuthManager(context), context) }
+    val coroutineScope = rememberCoroutineScope()
+
     val isCompletedLocally = remember(level.id) {
         context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
             .getBoolean("level_${level.id}", false)
     }
 
+    // состояние для хранения количества правильных ответов
+    var correctAnswers by remember { mutableStateOf(0) }
+    var totalQuestions by remember { mutableStateOf(0) }
+
+    // Загружаем данные теста, если это тест
+    LaunchedEffect(level.id) {
+        if (level.title.startsWith("Тест")) {
+            coroutineScope.launch {
+                val test = levelRepository.getTestByLevelId(level.id)
+                test?.let {
+                    val questions = levelRepository.getQuestionsWithAnswers(it.id)
+                    totalQuestions = questions.size
+
+                    // Проверяем сохраненные ответы
+                    val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+                    val userAnswers = questions.associate { q ->
+                        q.id to sharedPref.getInt("answer_${level.id}_${q.id}", -1)
+                    }
+
+                    if (userAnswers.values.all { it != -1 }) {
+                        correctAnswers = calculateScore(questions, userAnswers).first
+                    }
+                }
+            }
+        }
+    }
+
     val cardColor = when {
-        level.isCompleted || isCompletedLocally -> Green.copy(alpha = 0.3f)
+        level.isCompleted || isCompletedLocally -> Green
         level.title.startsWith("Тест") -> Blue
         else -> BackgroundColor
     }
-
 
     Card(
         modifier = Modifier
@@ -313,17 +281,13 @@ fun LevelCard(level: Level, navController: NavController) {
         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
-        Row(
-            modifier = Modifier
-                .background(cardColor)
-                .fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
+
             Column(
                 modifier = Modifier
-                    .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp)
-                    .weight(1f),
+                    .fillMaxSize()
+                    .background(cardColor)
+                    .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp),
+                    //.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -332,24 +296,53 @@ fun LevelCard(level: Level, navController: NavController) {
                     style = TextStyle(
                         color = Black,
                         fontSize = 20.sp,
-                        fontFamily = FontFamily(Font(R.font.jura_semibold))
-                    ))
-                            Text(
-                            modifier = Modifier.padding(top = 5.dp),
-                    text = level.description,
-                    style = TextStyle(
-                        color = Black,
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily(Font(R.font.jura))
-                    ))
-            }
-            if (level.isCompleted) {
-                Image(
-                    modifier = Modifier.padding(end = 20.dp),
-                    painter = painterResource(id = R.drawable.tick_icon),
-                    contentDescription = "Completed"
+                        fontFamily = FontFamily(Font(R.font.jura_semibold)))
                 )
+
+                Row(
+                    modifier = Modifier
+                        .background(cardColor)
+                        .fillMaxSize()
+                        .padding(top = 5.dp, start = 10.dp, end = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        text = level.description,
+                        style = TextStyle(
+                            color = Black,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily(Font(R.font.jura)))
+                    )
+
+                    if (level.isCompleted || isCompletedLocally) {
+                        Image(
+                            modifier = Modifier.padding(start = 5.dp),
+                            painter = painterResource(id = R.drawable.tick_icon),
+                            contentDescription = "Completed"
+                        )
+                    }
+
+                }
+
+                // Добавляем отображение результатов теста, если это тест и есть ответы
+                if (level.title.startsWith("Тест") && correctAnswers > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Правильных ответов: $correctAnswers/$totalQuestions",
+                        style = TextStyle(
+                            color = Black,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily(Font(R.font.jura_semibold)))
+                    )
+                }
+
+
+
             }
+
+
         }
     }
-}

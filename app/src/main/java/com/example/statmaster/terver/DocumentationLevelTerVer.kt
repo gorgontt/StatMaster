@@ -249,7 +249,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         onAnswerSelected = { questionId, answerId ->
                             userAnswers = userAnswers + (questionId to answerId)
                             showAnswerAllQuestionsWarning = false
-                        }
+                        },
+                        context = context,
+                        levelId = levelId ?: 0
                     )
                 }
             } else if (levelDocument != null) {
@@ -425,8 +427,26 @@ fun TestContent(
     questions: List<QuestionWithAnswers>,
     userAnswers: Map<Int, Int?>,
     checkedAnswers: Set<Int>,
-    onAnswerSelected: (Int, Int) -> Unit
+    onAnswerSelected: (Int, Int) -> Unit,
+    context: Context,
+    levelId: Int
+
 ) {
+
+    LaunchedEffect(checkedAnswers) {
+        if (checkedAnswers.isNotEmpty()) {
+            // Сохраняем ответы пользователя
+            val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+            with(sharedPref.edit()) {
+                userAnswers.forEach { (questionId, answerId) ->
+                    putInt("answer_${levelId}_$questionId", answerId ?: -1)
+                }
+                apply()
+            }
+        }
+    }
+
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -697,7 +717,7 @@ fun calculateScore(questions: List<QuestionWithAnswers>, userAnswers: Map<Int, I
     var correct = 0
     questions.forEach { question ->
         val selectedAnswerId = userAnswers[question.id]
-        if (selectedAnswerId != null) {
+        if (selectedAnswerId != null && selectedAnswerId != -1) {
             val selectedAnswer = question.answers.find { it.id == selectedAnswerId }
             if (selectedAnswer?.isCorrect == true) {
                 correct++
