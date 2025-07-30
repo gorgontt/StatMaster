@@ -82,7 +82,7 @@ import kotlinx.coroutines.withContext
 fun LevelsTerVer(navController: NavController) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
-    val levelRepository = remember { LevelRepository(authManager) }
+    val levelRepository = remember { LevelRepository(authManager, context) }
     var levels = remember { mutableStateListOf<Level>() }
     var isLoading by remember { mutableStateOf(true) }
     var connectionError by remember { mutableStateOf(false) }
@@ -112,21 +112,21 @@ fun LevelsTerVer(navController: NavController) {
 //    }
 
     LaunchedEffect(Unit) {
-        // Подписка на обновления
         navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>(
-            "force_refresh", false
+            "shouldRefresh", false
         )?.collect { shouldRefresh ->
             if (shouldRefresh) {
-                Log.d("LevelsTerVer", "Force refreshing levels")
+                // Перезагружаем уровни
                 levels.clear()
-                levels.addAll(withContext(Dispatchers.IO) {
-                    levelRepository.getAllLevels()
-                })
-                navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("force_refresh")
+                levels.addAll(levelRepository.getAllLevels())
+                // Сбрасываем флаг
+                navController.currentBackStackEntry?.savedStateHandle?.set(
+                    "shouldRefresh",
+                    false
+                )
             }
         }
     }
-
 //    LaunchedEffect(navController) {
 //        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>("shouldRefresh", false)
 //            ?.collect { shouldRefresh ->
@@ -283,13 +283,9 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
 fun LevelCard(level: Level, navController: NavController) {
 
     val context = LocalContext.current
-
-    val isCompletedLocally = remember {
-        val sharedPref = context.getSharedPreferences(
-            "LevelProgress",
-            Context.MODE_PRIVATE
-        )
-        sharedPref.getBoolean("level_${level.id}", false)
+    val isCompletedLocally = remember(level.id) {
+        context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+            .getBoolean("level_${level.id}", false)
     }
 
     val cardColor = when {

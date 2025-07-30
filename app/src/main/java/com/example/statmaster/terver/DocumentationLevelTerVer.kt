@@ -1,6 +1,7 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.core.Animatable
@@ -72,6 +73,7 @@ import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -84,7 +86,7 @@ import kotlinx.coroutines.withContext
 fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
-    val levelRepository = remember { LevelRepository(authManager) }
+    val levelRepository = remember { LevelRepository(authManager, context) }
 
     var levelDocument by remember { mutableStateOf<LevelDocument?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -115,21 +117,34 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             showError = false
 
             try {
-                // 1. Обновляем уровень
+                Log.d("CompleteLevel", "Starting level completion for $levelId")
+
+                // 1. Обновляем в базе данных
                 val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
+                Log.d("CompleteLevel", "Update success: $updateSuccess")
+
                 if (!updateSuccess) {
                     showError = true
                     return@launch
                 }
 
-                // 2. Принудительно обновляем список уровней
-                navController.previousBackStackEntry
-                    ?.savedStateHandle
-                    ?.set("force_refresh", true)
+                // 2. Устанавливаем флаг обновления
+                isLevelCompleted = true
 
-                // 3. Возвращаемся назад
+                // 3. Показываем уведомление пользователю
+                Toast.makeText(context, "Урок успешно завершен", Toast.LENGTH_SHORT).show()
+
+                // 4. Возвращаемся на предыдущий экран
                 navController.popBackStack()
+
+                // 5. Устанавливаем флаг для обновления списка уровней
+                navController.currentBackStackEntry?.savedStateHandle?.set(
+                    "shouldRefresh",
+                    true
+                )
+
             } catch (e: Exception) {
+                Log.e("CompleteLevel", "Error completing level", e)
                 showError = true
             } finally {
                 isLoading = false
@@ -168,6 +183,10 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 val level = levelRepository.getLevelById(levelId)
                 isLevelCompleted = level?.isCompleted ?: false
 
+                // Проверяем локальное хранилище на случай, если данные в БД не обновились
+                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                isLevelCompleted = isLevelCompleted || sharedPref.getBoolean("level_$levelId", false)
+
                 val test = levelRepository.getTestByLevelId(levelId)
                 if (test != null) {
                     isTest = true
@@ -179,7 +198,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 }
             } finally {
                 isLoading = false
-                rotation.stop()
             }
         }
     }
@@ -347,28 +365,26 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                     ) {
                         Button(
-                            onClick = completeLevel,
+                            onClick = {
+                                if (!isLevelCompleted) {
+                                    completeLevel()
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isLoading,
-                            colors = ButtonDefaults.buttonColors(containerColor = if (isLevelCompleted) Green.copy(alpha = 0.3f) else BackgroundColor)
+                            enabled = !isLoading && !isLevelCompleted,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isLevelCompleted) Green.copy(alpha = 0.3f) else BackgroundColor,
+                                disabledContainerColor = Green.copy(alpha = 0.3f)
+                            )
                         ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = Black,
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                Text(
-                                    modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                                    text = if (isLevelCompleted) "Урок пройден" else "Завершить урок",
-                                    style = TextStyle(
-                                        color = Black,
-                                        fontSize = 20.sp,
-                                        fontFamily = FontFamily(Font(R.font.jura))
-                                    )
-                                )
-                            }
+                            Text(
+                                modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
+                                text = if (isLevelCompleted) "Урок пройден" else "Завершить урок",
+                                style = TextStyle(
+                                    color = if (isLevelCompleted) Black else Black,
+                                    fontSize = 20.sp,
+                                    fontFamily = FontFamily(Font(R.font.jura))
+                                ))
                         }
                         if (showError) {
                             Text(

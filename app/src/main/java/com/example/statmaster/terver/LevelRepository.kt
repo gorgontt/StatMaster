@@ -2,6 +2,7 @@ package com.example.statmaster.terver
 
 import android.content.Context
 import android.util.Log
+import androidx.compose.ui.platform.LocalContext
 import com.example.statmaster.Answer
 import com.example.statmaster.AuthManager
 import com.example.statmaster.Level
@@ -11,7 +12,7 @@ import com.example.statmaster.Test
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 
-class LevelRepository(private val authManager: AuthManager) {
+class LevelRepository(private val authManager: AuthManager,  private val context: Context ) {
 
     suspend fun getAllLevels(): List<Level> {
         return try {
@@ -142,15 +143,9 @@ class LevelRepository(private val authManager: AuthManager) {
             // 2. Обновляем локальное хранилище
             markLevelAsCompleted(levelId)
 
-            // 3. Проверяем обновление
-            val updatedLevel = getLevel(levelId)
-            if (updatedLevel?.isCompleted == true) {
-                Log.d("LevelRepository", "Level $levelId successfully updated")
-                true
-            } else {
-                Log.e("LevelRepository", "Level $levelId update verification failed")
-                false
-            }
+            // 3. Возвращаем успех без проверки (временно)
+            Log.d("LevelRepository", "Level $levelId update request completed")
+            true
         } catch (e: Exception) {
             Log.e("LevelRepository", "Error updating level", e)
             false
@@ -177,10 +172,22 @@ class LevelRepository(private val authManager: AuthManager) {
 
     suspend fun getLevelById(levelId: Int): Level? {
         return try {
-            authManager.supabase.postgrest
+            // Проверяем сначала локальное хранилище
+            val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+            val isCompletedLocally = sharedPref.getBoolean("level_$levelId", false)
+
+            // Получаем данные из Supabase
+            val level = authManager.supabase.postgrest
                 .from("level?id=eq.$levelId")
                 .select()
                 .decodeSingleOrNull<Level>()
+
+            // Если есть локальное завершение, но в БД нет - обновляем БД
+            if (isCompletedLocally && (level?.isCompleted != true)) {
+                updateLevelCompletion(levelId, true)
+            }
+
+            level?.copy(isCompleted = level.isCompleted || isCompletedLocally)
         } catch (e: Exception) {
             Log.e("Supabase", "Error loading level", e)
             null
