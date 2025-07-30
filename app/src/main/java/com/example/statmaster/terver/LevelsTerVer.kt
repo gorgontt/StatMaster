@@ -1,6 +1,7 @@
 package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -111,24 +112,17 @@ fun LevelsTerVer(navController: NavController) {
 //    }
 
     LaunchedEffect(Unit) {
-        // Первоначальная загрузка
-        levels = withContext(Dispatchers.IO) {
-            levelRepository.getAllLevels().toMutableStateList()
-        }
-
         // Подписка на обновления
-        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Int>(
-            "updated_level",
-            -1
-        )?.collect { updatedId ->
-            if (updatedId > 0) {
-                Log.d("LevelsTerVer", "Received update for level $updatedId")
-                val updatedLevels = withContext(Dispatchers.IO) {
-                    levelRepository.getAllLevels()
-                }
+        navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>(
+            "force_refresh", false
+        )?.collect { shouldRefresh ->
+            if (shouldRefresh) {
+                Log.d("LevelsTerVer", "Force refreshing levels")
                 levels.clear()
-                levels.addAll(updatedLevels)
-                navController.currentBackStackEntry?.savedStateHandle?.remove<Int>("updated_level")
+                levels.addAll(withContext(Dispatchers.IO) {
+                    levelRepository.getAllLevels()
+                })
+                navController.currentBackStackEntry?.savedStateHandle?.remove<Boolean>("force_refresh")
             }
         }
     }
@@ -288,8 +282,18 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
 
+    val context = LocalContext.current
+
+    val isCompletedLocally = remember {
+        val sharedPref = context.getSharedPreferences(
+            "LevelProgress",
+            Context.MODE_PRIVATE
+        )
+        sharedPref.getBoolean("level_${level.id}", false)
+    }
+
     val cardColor = when {
-        level.isCompleted -> Green.copy(alpha = 0.3f)
+        level.isCompleted || isCompletedLocally -> Green.copy(alpha = 0.3f)
         level.title.startsWith("Тест") -> Blue
         else -> BackgroundColor
     }

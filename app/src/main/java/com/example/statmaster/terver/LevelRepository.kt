@@ -126,9 +126,10 @@ class LevelRepository(private val authManager: AuthManager) {
 
     suspend fun updateLevelCompletion(levelId: Int, isCompleted: Boolean): Boolean {
         return try {
-            Log.d("LevelRepository", "Attempting to update level $levelId to completed=$isCompleted")
+            Log.d("LevelRepository", "Updating level $levelId to completed=$isCompleted")
 
-            val response = authManager.supabase.postgrest
+            // 1. Обновляем в Supabase
+            authManager.supabase.postgrest
                 .from("level")
                 .update(
                     mapOf("is_completed" to isCompleted)
@@ -138,9 +139,18 @@ class LevelRepository(private val authManager: AuthManager) {
                     }
                 }
 
-            Log.d("LevelRepository", "Update performed for level $levelId")
+            // 2. Обновляем локальное хранилище
+            markLevelAsCompleted(levelId)
 
-            true
+            // 3. Проверяем обновление
+            val updatedLevel = getLevel(levelId)
+            if (updatedLevel?.isCompleted == true) {
+                Log.d("LevelRepository", "Level $levelId successfully updated")
+                true
+            } else {
+                Log.e("LevelRepository", "Level $levelId update verification failed")
+                false
+            }
         } catch (e: Exception) {
             Log.e("LevelRepository", "Error updating level", e)
             false

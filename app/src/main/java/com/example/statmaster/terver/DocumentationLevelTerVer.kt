@@ -107,70 +107,29 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     }
 
 
-
-//    fun completeLevel() {
-//        coroutineScope.launch {
-//            try {
-//                // Обновляем уровень в базе данных
-//                levelId?.let { id ->
-//                    levelRepository.updateLevelCompletion(id, true)
-//                    levelRepository.markLevelAsCompleted(id)
-//                }
-//
-//                // Возвращаемся на предыдущий экран с флагом обновления
-//                navController.previousBackStackEntry?.savedStateHandle?.set(
-//                    "level_completed",
-//                    levelId ?: -1
-//                )
-//                navController.popBackStack()
-//            } catch (e: Exception) {
-//                // Обработка ошибок
-//                Log.e("DocumentationLevel", "Error completing level", e)
-//            }
-//        }
-//    }
-
     val completeLevel: () -> Unit = {
         coroutineScope.launch {
-            if (levelId == null) {
-                Log.e("CompleteLevel", "levelId is null")
-                return@launch
-            }
+            if (levelId == null) return@launch
 
             isLoading = true
             showError = false
 
             try {
-                Log.d("CompleteLevel", "Starting level completion for $levelId")
-
-                // 1. Обновляем в базе данных
+                // 1. Обновляем уровень
                 val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
-                Log.d("CompleteLevel", "Update success: $updateSuccess")
-
                 if (!updateSuccess) {
                     showError = true
                     return@launch
                 }
 
-                // 2. Обновляем локальное хранилище
-                levelRepository.markLevelAsCompleted(levelId)
-                Log.d("CompleteLevel", "Local storage updated")
+                // 2. Принудительно обновляем список уровней
+                navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.set("force_refresh", true)
 
-                // 3. Обновляем UI состояние
-                isLevelCompleted = true
-                Log.d("CompleteLevel", "UI state updated")
-
-                // 4. Возвращаемся с обновленными данными
-                navController.previousBackStackEntry?.savedStateHandle?.set(
-                    "updated_level",
-                    levelId
-                )
-                Log.d("CompleteLevel", "Navigation state updated")
-
+                // 3. Возвращаемся назад
                 navController.popBackStack()
-
             } catch (e: Exception) {
-                Log.e("CompleteLevel", "Error completing level", e)
                 showError = true
             } finally {
                 isLoading = false
