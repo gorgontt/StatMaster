@@ -61,6 +61,7 @@ import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
+import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
 import kotlinx.coroutines.launch
 
@@ -257,9 +258,15 @@ fun LevelCard(level: Level, navController: NavController) {
         }
     }
 
+    // Определяем цвет карточки
     val cardColor = when {
-        level.isCompleted || isCompletedLocally -> Green
+        // Если это тест и он пройден - красный
+        (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> DarkGreen
+        // Если это уроыень и пройден - зеленый
+        (level.isCompleted || isCompletedLocally) -> Green
+        // Если это тест (но не пройден) - синий
         level.title.startsWith("Тест") -> Blue
+        // Во всех остальных случаях - цвет фона
         else -> BackgroundColor
     }
 
@@ -281,56 +288,56 @@ fun LevelCard(level: Level, navController: NavController) {
         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(cardColor)
+                .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = level.title,
+                style = TextStyle(
+                    color = Black,
+                    fontSize = 20.sp,
+                    fontFamily = FontFamily(Font(R.font.jura_semibold)))
+            )
 
-            Column(
+            Row(
                 modifier = Modifier
-                    .fillMaxSize()
                     .background(cardColor)
-                    .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp),
-                    //.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                    .fillMaxSize()
+                    .padding(top = 5.dp, start = 10.dp, end = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = level.title,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    text = level.description,
                     style = TextStyle(
                         color = Black,
-                        fontSize = 20.sp,
-                        fontFamily = FontFamily(Font(R.font.jura_semibold)))
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily(Font(R.font.jura)))
                 )
 
-                Row(
-                    modifier = Modifier
-                        .background(cardColor)
-                        .fillMaxSize()
-                        .padding(top = 5.dp, start = 10.dp, end = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
+//                if (level.isCompleted || isCompletedLocally) {
+//                    Image(
+//                        modifier = Modifier.padding(start = 5.dp),
+//                        painter = painterResource(id = R.drawable.tick_icon),
+//                        contentDescription = "Completed"
+//                    )
+//                }
+            }
+
+            if (level.title.startsWith("Тест") && correctAnswers > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row (modifier = Modifier.fillMaxWidth()
+                    .padding(start = 10.dp, end = 10.dp)){
                     Text(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
-                        text = level.description,
-                        style = TextStyle(
-                            color = Black,
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily(Font(R.font.jura)))
-                    )
-
-                    if (level.isCompleted || isCompletedLocally) {
-                        Image(
-                            modifier = Modifier.padding(start = 5.dp),
-                            painter = painterResource(id = R.drawable.tick_icon),
-                            contentDescription = "Completed"
-                        )
-                    }
-
-                }
-
-                // Добавляем отображение результатов теста, если это тест и есть ответы
-                if (level.title.startsWith("Тест") && correctAnswers > 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
                         text = "Правильных ответов: $correctAnswers/$totalQuestions",
                         style = TextStyle(
                             color = Black,
@@ -338,11 +345,7 @@ fun LevelCard(level: Level, navController: NavController) {
                             fontFamily = FontFamily(Font(R.font.jura_semibold)))
                     )
                 }
-
-
-
             }
-
-
         }
     }
+}

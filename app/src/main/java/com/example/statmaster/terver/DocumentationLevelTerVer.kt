@@ -72,6 +72,7 @@ import com.example.statmaster.Test
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
+import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.CoroutineScope
@@ -97,6 +98,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var checkedAnswers by remember { mutableStateOf<Set<Int>>(emptySet()) }
     var showAnswerAllQuestionsWarning by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }
+
+    var answersChecked by remember { mutableStateOf(false) }
+    var testCompleted by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
 
@@ -202,6 +206,95 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
+    // Загрузка сохраненных ответов при инициализации
+    LaunchedEffect(levelId) {
+        if (levelId != null) {
+            try {
+                val level = levelRepository.getLevelById(levelId)
+                isLevelCompleted = level?.isCompleted ?: false
+
+                // Проверяем локальное хранилище
+                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                isLevelCompleted = isLevelCompleted || sharedPref.getBoolean("level_$levelId", false)
+
+                val test = levelRepository.getTestByLevelId(levelId)
+                if (test != null) {
+                    isTest = true
+                    testData = test
+                    questions = levelRepository.getQuestionsWithAnswers(test.id)
+
+                    // Загружаем сохраненные ответы
+                    val answersPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+                    val savedAnswers = questions.associate { question ->
+                        val key = "answer_${levelId}_${question.id}"
+                        question.id to if (answersPref.contains(key)) answersPref.getInt(key, -1) else null
+                    }
+
+                    userAnswers = savedAnswers.filterValues { it != null }
+
+                    // Если все ответы сохранены, считаем что тест завершен
+                    if (savedAnswers.values.all { it != null }) {
+                        checkedAnswers = questions.map { it.id }.toSet()
+                        answersChecked = true
+                        testCompleted = true
+                    }
+                } else {
+                    levelDocument = levelRepository.getLevelDocument(levelId)
+                }
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Сохранение ответов при изменении
+    LaunchedEffect(userAnswers, checkedAnswers) {
+        if (checkedAnswers.isNotEmpty()) {
+            val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+            with(sharedPref.edit()) {
+                userAnswers.forEach { (questionId, answerId) ->
+                    putInt("answer_${levelId}_$questionId", answerId ?: -1)
+                }
+                apply()
+            }
+        }
+    }
+
+    // Функция завершения теста
+    val completeTest = {
+        coroutineScope.launch {
+            if (levelId == null) return@launch
+
+            isLoading = true
+            showError = false
+
+            try {
+                val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
+                if (!updateSuccess) {
+                    showError = true
+                    return@launch
+                }
+
+                // Сохраняем в SharedPreferences
+                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                sharedPref.edit().putBoolean("level_$levelId", true).apply()
+
+                isLevelCompleted = true
+                testCompleted = true
+                Toast.makeText(context, "Тест успешно завершен", Toast.LENGTH_SHORT).show()
+
+                // Возвращаемся и обновляем список уровней
+                navController.popBackStack()
+                navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+            } catch (e: Exception) {
+                Log.e("CompleteTest", "Error completing test", e)
+                showError = true
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -266,9 +359,10 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                     containerColor = BackgroundColor,
                     modifier = Modifier.height(130.dp)
                 ) {
-                    Row (
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Card(
                             modifier = Modifier
@@ -279,8 +373,11 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                             shape = RoundedCornerShape(30.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                         ) {
-                            Row (modifier = Modifier.background(BackgroundColor),
-                                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically){
+                            Row(
+                                modifier = Modifier.background(BackgroundColor),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
                                     modifier = Modifier.padding(
                                         top = 15.dp,
@@ -309,9 +406,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                                         fontFamily = FontFamily(Font(R.font.jura))
                                     )
                                 )
-
                             }
-
                         }
                         Card(
                             modifier = Modifier
@@ -325,29 +420,48 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         ) {
                             Button(
                                 onClick = {
-                                    if (allQuestionsAnswered) {
-                                        checkedAnswers = userAnswers.keys
-                                        showAnswerAllQuestionsWarning = false
+                                    if (!answersChecked) {
+                                        // Первое нажатие - проверка ответов
+                                        if (userAnswers.size == questions.size && userAnswers.values.all { it != null }) {
+                                            checkedAnswers = questions.map { it.id }.toSet()
+                                            answersChecked = true
+                                            showAnswerAllQuestionsWarning = false
+                                        } else {
+                                            showAnswerAllQuestionsWarning = true
+                                            Toast.makeText(context, "Пожалуйста, ответьте на все вопросы", Toast.LENGTH_SHORT).show()
+                                        }
                                     } else {
-                                        showAnswerAllQuestionsWarning = true
-                                        showToast("Пожалуйста, ответьте на все вопросы")
+                                        // Второе нажатие - завершение теста
+                                        completeTest()
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = allQuestionsAnswered,
+                                enabled = if (!answersChecked) {
+                                    userAnswers.size == questions.size && userAnswers.values.all { it != null }
+                                } else {
+                                    true
+                                },
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (allQuestionsAnswered) Blue else BackgroundColor,
+                                    containerColor = when {
+                                        testCompleted -> Green.copy(alpha = 0.3f)
+                                        answersChecked -> Green
+                                        else -> Blue
+                                    },
                                     disabledContainerColor = BackgroundColor
                                 )
                             ) {
                                 Text(
                                     modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
-                                    text = "Проверить ответы",
+                                    text = when {
+                                        testCompleted -> "Тест завершен"
+                                        answersChecked -> "Завершить тест"
+                                        else -> "Проверить ответы"
+                                    },
                                     style = TextStyle(
                                         color = Black,
                                         fontSize = 20.sp,
-                                        fontFamily = FontFamily(Font(R.font.jura))
-                                    ))
+                                        fontFamily = FontFamily(Font(R.font.jura)))
+                                    )
                             }
                         }
                     }
@@ -650,7 +764,8 @@ fun QuestionCard(
     question: QuestionWithAnswers,
     selectedAnswerId: Int?,
     checked: Boolean,
-    onAnswerSelected: (Int) -> Unit
+    onAnswerSelected: (Int) -> Unit,
+    testCompleted: Boolean = false // Добавляем параметр
 ) {
     Card(
         modifier = Modifier
@@ -661,15 +776,14 @@ fun QuestionCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-
-                Text(
-                    text = question.questionText,
-                    style = TextStyle(
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily(Font(R.font.jura_semibold))
-                    ),
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
+            Text(
+                text = question.questionText,
+                style = TextStyle(
+                    fontSize = 18.sp,
+                    fontFamily = FontFamily(Font(R.font.jura_semibold))
+                ),
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
             question.answers.forEach { answer ->
                 val isSelected = selectedAnswerId == answer.id
@@ -684,7 +798,7 @@ fun QuestionCard(
                 }
 
                 val borderColor = when {
-                    isSelected -> Blue
+                    isSelected -> DarkBlue
                     else -> Color.LightGray
                 }
 
@@ -692,10 +806,10 @@ fun QuestionCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .border(1.dp, borderColor, RoundedCornerShape(4.dp))
-                        .background(backgroundColor, RoundedCornerShape(4.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(5.dp))
+                        .background(backgroundColor, RoundedCornerShape(5.dp))
                         .clickable(
-                            enabled = !checked,
+                            enabled = !checked && !testCompleted, // Блокируем изменения после завершения
                             onClick = { onAnswerSelected(answer.id) }
                         )
                         .padding(12.dp)
