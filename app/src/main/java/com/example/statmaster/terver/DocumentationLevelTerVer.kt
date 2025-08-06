@@ -64,6 +64,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.statmaster.AuthManager
 import com.example.statmaster.ContentBlock
+import com.example.statmaster.Level
 import com.example.statmaster.LevelDocument
 import com.example.statmaster.ParsedDocument
 import com.example.statmaster.QuestionWithAnswers
@@ -99,6 +100,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var showAnswerAllQuestionsWarning by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf(false) }
 
+    var currentLevel by remember { mutableStateOf<Level?>(null) }
+    var level by remember { mutableStateOf<Level?>(null) }
+
     var answersChecked by remember { mutableStateOf(false) }
     var testCompleted by remember { mutableStateOf(false) }
 
@@ -106,10 +110,69 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
 
     var isLevelCompleted by remember { mutableStateOf(false) }
 
+    var totalQuestions by remember { mutableStateOf(0) }
+
     val onLevelCompleted = {
         navController.popBackStack()
         // Сообщаем родительскому экрану, что нужно обновить уровни
-        navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+        navController.currentBackStackEntry?.savedStateHandle?.set(
+            "shouldRefresh",
+            true
+        )
+    }
+
+
+
+    LaunchedEffect(levelId) {
+        if (levelId != null) {
+            try {
+                isLoading = true
+
+                // Загружаем данные уровня
+                val loadedLevel = levelRepository.getLevelById(levelId)
+                currentLevel = loadedLevel
+                level = loadedLevel
+                isLevelCompleted = loadedLevel?.isCompleted ?: false
+
+                // Проверяем локальное хранилище
+                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                isLevelCompleted = isLevelCompleted || sharedPref.getBoolean("level_$levelId", false)
+
+                if (loadedLevel?.title?.startsWith("Тест") == true) {
+                    // Это тест - загружаем вопросы
+                    val test = levelRepository.getTestByLevelId(levelId)
+                    test?.let {
+                        isTest = true
+                        testData = test
+                        val loadedQuestions = levelRepository.getQuestionsWithAnswers(test.id)
+                        questions = loadedQuestions
+                        totalQuestions = loadedQuestions.size // Устанавливаем общее количество вопросов
+
+                        // Загружаем сохраненные ответы
+                        val answersPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+                        userAnswers = loadedQuestions.associate { question ->
+                            val key = "answer_${levelId}_${question.id}"
+                            question.id to if (answersPref.contains(key)) answersPref.getInt(key, -1) else null
+                        }
+
+                        // Если все ответы сохранены, помечаем как проверенные
+                        if (userAnswers.values.all { it != null }) {
+                            checkedAnswers = loadedQuestions.map { it.id }.toSet()
+                            answersChecked = true
+                            testCompleted = true
+                        }
+                    }
+                } else {
+                    // Это не тест - загружаем документ
+                    levelDocument = levelRepository.getLevelDocument(levelId)
+                }
+            } catch (e: Exception) {
+                Log.e("DocumentationLevel", "Error loading level data", e)
+                showError = true
+            } finally {
+                isLoading = false
+            }
+        }
     }
 
 
@@ -167,13 +230,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     // Проверяем, ответил ли пользователь на все вопросы
     val allQuestionsAnswered = remember(userAnswers, questions) {
         userAnswers.size == questions.size && userAnswers.values.all { it != null }
-    }
-
-    // Функция для показа Toast
-    val showToast = remember {
-        { message: String ->
-            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        }
     }
 
     LaunchedEffect(Unit) {
@@ -260,6 +316,32 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
+    LaunchedEffect(levelId) {
+        if (levelId != null) {
+            try {
+                val level = levelRepository.getLevelById(levelId)
+                currentLevel = level // Сохраняем данные уровня
+                isLevelCompleted = level?.isCompleted ?: false
+
+                // Проверяем локальное хранилище на случай, если данные в БД не обновились
+                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                isLevelCompleted = isLevelCompleted || sharedPref.getBoolean("level_$levelId", false)
+
+                val test = levelRepository.getTestByLevelId(levelId)
+                if (test != null) {
+                    isTest = true
+                    testData = test
+                    questions = levelRepository.getQuestionsWithAnswers(test.id)
+                    userAnswers = questions.associate { it.id to null }
+                } else {
+                    levelDocument = levelRepository.getLevelDocument(levelId)
+                }
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
     // Функция завершения теста
     val completeTest = {
         coroutineScope.launch {
@@ -299,7 +381,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         topBar = {
             TopAppBar(
                 modifier = Modifier.background(BackgroundColor),
-                title = { Text("Документация уровня") },
+                title = { Text(currentLevel?.title ?: testData?.title ?: "Документация уровня") },
                 navigationIcon = {
                     IconButton({ navController.popBackStack() }) {
                         Icon(
@@ -399,7 +481,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
 
                                 Text(
                                     modifier = Modifier.padding(top = 15.dp, bottom = 15.dp, end = 10.dp),
-                                    text = "/5",
+                                    text = "/$totalQuestions",
                                     style = TextStyle(
                                         color = Black,
                                         fontSize = 20.sp,
