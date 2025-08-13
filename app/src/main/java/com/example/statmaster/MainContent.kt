@@ -94,6 +94,8 @@ fun MainContent(navController: NavController) {
                 when (selectedOption) {
                     "Случайные события" ->
                         navController.navigate(Routes.LevelsTerVer.route)
+                    "Теоремы вероятностей" ->
+                        navController.navigate("${Routes.LevelsTerVer.route}?startFrom=chapter2")
                 }
             }
         )

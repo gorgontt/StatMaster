@@ -15,7 +15,9 @@ import com.example.statmaster.terver.LevelsTerVer
 sealed class Routes(val route: String) {
     object MainClass : Routes("main_class")
     object MainContent : Routes("main_content")
-    object LevelsTerVer : Routes("levels_terver")
+    object LevelsTerVer : Routes("levels_terver?scrollTo={scrollTo}") {
+        fun createRoute(scrollTo: String? = null) = "levels_terver${if (scrollTo != null) "?scrollTo=$scrollTo" else ""}"
+    }
     object DocumentationLevel : Routes("documentation_level/{levelId}") {
         fun createRoute(levelId: Int) = "documentation_level/$levelId"
     }

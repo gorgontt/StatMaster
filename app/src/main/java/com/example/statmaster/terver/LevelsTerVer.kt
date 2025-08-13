@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -91,6 +92,40 @@ fun LevelsTerVer(navController: NavController) {
 
     val coroutineScope = rememberCoroutineScope()
 
+    val scrollState = rememberScrollState()
+    var scrollToChapter2 by remember { mutableStateOf(false) }
+    var startFromChapter2 by remember { mutableStateOf(false) }
+
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntry?.arguments?.getString("scrollTo")?.let { target ->
+            if (target == "chapter2") {
+                scrollToChapter2 = true
+            }
+        }
+    }
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntry?.arguments?.getString("startFrom")?.let { target ->
+            if (target == "chapter2") {
+                startFromChapter2 = true
+            }
+        }
+    }
+
+    // Прокрутка к главе 2 при необходимости
+    LaunchedEffect(scrollToChapter2, levels.isNotEmpty()) {
+        if (scrollToChapter2 && levels.isNotEmpty()) {
+            // Find the position of Chapter 2 (after Test 5)
+            val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
+            if (chapter2Index >= 0) {
+                // Give time for composition and then scroll
+                kotlinx.coroutines.delay(100)
+                scrollState.scrollTo(scrollState.maxValue) // First scroll to bottom
+                scrollState.animateScrollTo(scrollState.maxValue) // Then animate to position
+            }
+            scrollToChapter2 = false
+        }
+    }
+
 
     LaunchedEffect(Unit) {
         navController.currentBackStackEntry?.savedStateHandle?.getStateFlow<Boolean>(
@@ -170,7 +205,13 @@ fun LevelsTerVer(navController: NavController) {
                 } else if (levels.isEmpty()) {
                     Text("Нет данных")
                 } else {
-                    ContentTerVerLevels(levels, navController)
+                    if (startFromChapter2) {
+                        // Показываем только начиная с Главы 2
+                        ContentFromChapter2(levels, navController)
+                    } else {
+                        // Показываем все содержимое
+                        ContentTerVerLevels(levels, navController, rememberScrollState())
+                    }
                 }
 
             }
@@ -204,7 +245,40 @@ fun LoadingIndicator(progress: Float) {
 private const val DURATION = 1000
 
 @Composable
-fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
+fun ContentTerVerLevels(
+    levels: List<Level>,
+    navController: NavController,
+    scrollState: ScrollState
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .fillMaxWidth()
+            .background(BackgroundColor)
+            .verticalScroll(scrollState)
+            .padding()
+    ) {
+        levels.forEach { level ->
+            LevelCard(level, navController)
+
+            if (level.id == 13 || level.title == "Тест 5") {
+                // Add modifier to identify Chapter 2 section
+                ChapterDivider(
+                    title = "Глава 2",
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ContentFromChapter2(
+    levels: List<Level>,
+    navController: NavController
+) {
+    val chapter2StartIndex = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
+
     Column(
         modifier = Modifier
             .fillMaxHeight()
@@ -213,9 +287,20 @@ fun ContentTerVerLevels(levels: List<Level>, navController: NavController) {
             .verticalScroll(rememberScrollState())
             .padding()
     ) {
-        levels.forEach { level ->
-            LevelCard(level, navController)
+        if (chapter2StartIndex >= 0) {
+            // Добавляем заголовок Главы 2
+            ChapterDivider(
+                title = "Глава 2",
+                modifier = Modifier.fillMaxWidth()
+            )
 
+            // Показываем все элементы начиная с Главы 2
+            levels.subList(chapter2StartIndex, levels.size).forEach { level ->
+                LevelCard(level, navController)
+            }
+        } else {
+            // Если Глава 2 не найдена, показываем все содержимое
+            ContentTerVerLevels(levels, navController, rememberScrollState())
         }
     }
 }
@@ -347,5 +432,29 @@ fun LevelCard(level: Level, navController: NavController) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ChapterDivider(
+    title: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .padding(vertical = 20.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(
+            text = title,
+            style = TextStyle(
+                color = Color.Black,
+                fontSize = 24.sp,
+                fontFamily = FontFamily(Font(R.font.jura_semibold))
+            ),
+            modifier = Modifier
+                .background(BackgroundColor)
+                .padding(horizontal = 16.dp)
+        )
     }
 }
