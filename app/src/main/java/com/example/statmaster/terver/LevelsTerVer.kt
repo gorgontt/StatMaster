@@ -97,21 +97,43 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
     //var levels by remember { mutableStateOf(emptyList<Level>()) }
 
     LaunchedEffect(Unit) {
-        // Исправление: используем addAll вместо присваивания
-        levels.clear()
-        levels.addAll(levelRepository.getAllLevels())
-        isLoading = false
+        try {
+            // Запускаем анимацию загрузки
+            launch {
+                while (shouldAnimate) {
+                    progress.animateTo(0.8f, animationSpec = tween(800))
+                    progress.animateTo(0.2f, animationSpec = tween(800))
+                }
+            }
+
+            // Проверяем соединение
+            val isConnected = authManager.testConnection()
+            connectionError = !isConnected
+
+            if (isConnected) {
+                // Загружаем данные только один раз
+                val loadedLevels = levelRepository.getAllLevels()
+                levels.clear()
+                levels.addAll(loadedLevels)
+            }
+
+        } finally {
+            // Останавливаем анимацию
+            shouldAnimate = false
+            progress.animateTo(1f, animationSpec = tween(300))
+            isLoading = false
+        }
     }
 
-    // Эффект для прокрутки при изменении параметра или загрузке данных
+    // Прокрутка к нужной главе
     LaunchedEffect(scrollToChapter, levels.isNotEmpty()) {
-        if (levels.isEmpty() || scrollToChapter != "chapter2") return@LaunchedEffect
-
-        val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
-        if (chapter2Index != -1) {
-            delay(100) // Небольшая задержка для инициализации
-            coroutineScope.launch {
-                lazyListState.animateScrollToItem(chapter2Index)
+        if (scrollToChapter == "chapter2" && levels.isNotEmpty()) {
+            val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
+            if (chapter2Index >= 0) {
+                delay(300) // Увеличили задержку для гарантии рендеринга
+                coroutineScope.launch {
+                    lazyListState.animateScrollToItem(chapter2Index)
+                }
             }
         }
     }
@@ -122,13 +144,10 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
             "shouldRefresh", false
         )?.collect { shouldRefresh ->
             if (shouldRefresh) {
-                // Перезагружаем уровни
                 levels.clear()
                 levels.addAll(levelRepository.getAllLevels())
-                // Сбрасываем флаг
                 navController.currentBackStackEntry?.savedStateHandle?.set(
-                    "shouldRefresh",
-                    false
+                    "shouldRefresh", false
                 )
             }
         }
@@ -143,30 +162,6 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
         }
     }
 
-    LaunchedEffect(Unit) {
-        // Запускаем бесконечную анимацию в фоне
-        launch {
-            while (shouldAnimate) {
-                progress.animateTo(0.8f, animationSpec = tween(800))
-                progress.animateTo(0.2f, animationSpec = tween(800))
-            }
-        }
-
-        // Параллельно загружаем данные
-        launch {
-            val isConnected = authManager.testConnection()
-            connectionError = !isConnected
-
-            if (isConnected) {
-                levels.addAll(levelRepository.getAllLevels())
-            }
-
-            // Завершаем анимацию
-            shouldAnimate = false
-            progress.animateTo(1f, animationSpec = tween(300))
-            isLoading = false
-        }
-    }
 
     Scaffold(
         modifier = Modifier.background(BackgroundColor),
