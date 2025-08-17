@@ -95,12 +95,18 @@ fun LevelsTerVer(navController: NavController) {
     val scrollState = rememberScrollState()
     var scrollToChapter2 by remember { mutableStateOf(false) }
     var startFromChapter2 by remember { mutableStateOf(false) }
-    var chapter2Offset by remember { mutableStateOf(0) }
 
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntry?.arguments?.getString("scrollTo")?.let { target ->
+            if (target == "chapter2") {
+                scrollToChapter2 = true
+            }
+        }
+    }
     LaunchedEffect(navController) {
         navController.currentBackStackEntry?.arguments?.getString("startFrom")?.let { target ->
             if (target == "chapter2") {
-                scrollToChapter2 = true
+                startFromChapter2 = true
             }
         }
     }
@@ -111,17 +117,14 @@ fun LevelsTerVer(navController: NavController) {
             // Find the position of Chapter 2 (after Test 5)
             val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
             if (chapter2Index >= 0) {
-                // Calculate approximate scroll position (you may need to adjust this)
-                chapter2Offset = chapter2Index * 150 // Approximate height per item
-
-                // Scroll after composition is complete
+                // Give time for composition and then scroll
                 kotlinx.coroutines.delay(100)
-                scrollState.scrollTo(chapter2Offset)
+                scrollState.scrollTo(scrollState.maxValue) // First scroll to bottom
+                scrollState.animateScrollTo(scrollState.maxValue) // Then animate to position
             }
             scrollToChapter2 = false
         }
     }
-
 
 
     LaunchedEffect(Unit) {
@@ -202,10 +205,18 @@ fun LevelsTerVer(navController: NavController) {
                 } else if (levels.isEmpty()) {
                     Text("Нет данных")
                 } else {
-                    ContentTerVerLevels(levels, navController, scrollState)
+                    if (startFromChapter2) {
+                        // Показываем только начиная с Главы 2
+                        ContentFromChapter2(levels, navController)
+                    } else {
+                        // Показываем все содержимое
+                        ContentTerVerLevels(levels, navController, rememberScrollState())
+                    }
                 }
+
             }
         })
+
 
 }
 
@@ -247,11 +258,11 @@ fun ContentTerVerLevels(
             .verticalScroll(scrollState)
             .padding()
     ) {
-        levels.forEachIndexed { index, level ->
+        levels.forEach { level ->
             LevelCard(level, navController)
 
             if (level.id == 13 || level.title == "Тест 5") {
-                // Add Chapter 2 divider
+                // Add modifier to identify Chapter 2 section
                 ChapterDivider(
                     title = "Глава 2",
                     modifier = Modifier.fillMaxWidth()
@@ -429,8 +440,11 @@ fun ChapterDivider(
     title: String,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        Spacer(modifier = Modifier.height(16.dp))
+    Box(
+        modifier = modifier
+            .padding(vertical = 20.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
         Text(
             text = title,
             style = TextStyle(
@@ -439,8 +453,8 @@ fun ChapterDivider(
                 fontFamily = FontFamily(Font(R.font.jura_semibold))
             ),
             modifier = Modifier
-                .padding(horizontal = 32.dp)
+                .background(BackgroundColor)
+                .padding(horizontal = 16.dp)
         )
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
