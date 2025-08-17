@@ -21,6 +21,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +44,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -64,13 +68,14 @@ import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun LevelsTerVer(navController: NavController) {
+fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
     val levelRepository = remember { LevelRepository(authManager, context) }
@@ -87,42 +92,27 @@ fun LevelsTerVer(navController: NavController) {
     //состояние для принудительного обновления
     var refreshTrigger by remember { mutableStateOf(0) }
 
-
-    var levelsState by remember { mutableStateOf(emptyList<Level>()) }
-
+    val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    //var levels by remember { mutableStateOf(emptyList<Level>()) }
 
-    val scrollState = rememberScrollState()
-    var scrollToChapter2 by remember { mutableStateOf(false) }
-    var startFromChapter2 by remember { mutableStateOf(false) }
-
-    LaunchedEffect(navController) {
-        navController.currentBackStackEntry?.arguments?.getString("scrollTo")?.let { target ->
-            if (target == "chapter2") {
-                scrollToChapter2 = true
-            }
-        }
-    }
-    LaunchedEffect(navController) {
-        navController.currentBackStackEntry?.arguments?.getString("startFrom")?.let { target ->
-            if (target == "chapter2") {
-                startFromChapter2 = true
-            }
-        }
+    LaunchedEffect(Unit) {
+        // Исправление: используем addAll вместо присваивания
+        levels.clear()
+        levels.addAll(levelRepository.getAllLevels())
+        isLoading = false
     }
 
-    // Прокрутка к главе 2 при необходимости
-    LaunchedEffect(scrollToChapter2, levels.isNotEmpty()) {
-        if (scrollToChapter2 && levels.isNotEmpty()) {
-            // Find the position of Chapter 2 (after Test 5)
-            val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
-            if (chapter2Index >= 0) {
-                // Give time for composition and then scroll
-                kotlinx.coroutines.delay(100)
-                scrollState.scrollTo(scrollState.maxValue) // First scroll to bottom
-                scrollState.animateScrollTo(scrollState.maxValue) // Then animate to position
+    // Эффект для прокрутки при изменении параметра или загрузке данных
+    LaunchedEffect(scrollToChapter, levels.isNotEmpty()) {
+        if (levels.isEmpty() || scrollToChapter != "chapter2") return@LaunchedEffect
+
+        val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
+        if (chapter2Index != -1) {
+            delay(100) // Небольшая задержка для инициализации
+            coroutineScope.launch {
+                lazyListState.animateScrollToItem(chapter2Index)
             }
-            scrollToChapter2 = false
         }
     }
 
@@ -190,7 +180,7 @@ fun LevelsTerVer(navController: NavController) {
         content = { padding ->
             Column(
                 modifier = Modifier
-                    .padding(padding)
+                    //.padding(padding)
                     .fillMaxSize()
             ) {
                 if (isLoading) {
@@ -205,15 +195,24 @@ fun LevelsTerVer(navController: NavController) {
                 } else if (levels.isEmpty()) {
                     Text("Нет данных")
                 } else {
-                    if (startFromChapter2) {
-                        // Показываем только начиная с Главы 2
-                        ContentFromChapter2(levels, navController)
-                    } else {
-                        // Показываем все содержимое
-                        ContentTerVerLevels(levels, navController, rememberScrollState())
-                    }
-                }
+                    // Используем LazyColumn вместо Column с вертикальным скроллом
+                    LazyColumn(
+                        state = lazyListState,
+                        modifier = Modifier
+                            .padding(padding)
+                            .fillMaxSize()
+                            .background(BackgroundColor)
+                    ) {
+                        items(levels) { level ->
+                            LevelCard(level, navController)
 
+                            if (level.id == 13 || level.title == "Тест 5") {
+                                ChapterDivider("Глава 2")
+                            }
+                        }
+                    }
+
+                }
             }
         })
 
@@ -244,66 +243,7 @@ fun LoadingIndicator(progress: Float) {
 
 private const val DURATION = 1000
 
-@Composable
-fun ContentTerVerLevels(
-    levels: List<Level>,
-    navController: NavController,
-    scrollState: ScrollState
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth()
-            .background(BackgroundColor)
-            .verticalScroll(scrollState)
-            .padding()
-    ) {
-        levels.forEach { level ->
-            LevelCard(level, navController)
 
-            if (level.id == 13 || level.title == "Тест 5") {
-                // Add modifier to identify Chapter 2 section
-                ChapterDivider(
-                    title = "Глава 2",
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun ContentFromChapter2(
-    levels: List<Level>,
-    navController: NavController
-) {
-    val chapter2StartIndex = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
-
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .fillMaxWidth()
-            .background(BackgroundColor)
-            .verticalScroll(rememberScrollState())
-            .padding()
-    ) {
-        if (chapter2StartIndex >= 0) {
-            // Добавляем заголовок Главы 2
-            ChapterDivider(
-                title = "Глава 2",
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Показываем все элементы начиная с Главы 2
-            levels.subList(chapter2StartIndex, levels.size).forEach { level ->
-                LevelCard(level, navController)
-            }
-        } else {
-            // Если Глава 2 не найдена, показываем все содержимое
-            ContentTerVerLevels(levels, navController, rememberScrollState())
-        }
-    }
-}
 
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
