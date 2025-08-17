@@ -94,12 +94,18 @@ fun MainContent(navController: NavController) {
                 when (selectedOption) {
                     "Случайные события" ->
                         navController.navigate(Routes.LevelsTerVer.route)
-                    "Теоремы вероятностей" ->
-                        navController.navigate("${Routes.LevelsTerVer.route}?startFrom=chapter2")
+                    "Теоремы вероятностей" -> {
+                        navController.navigate("${Routes.LevelsTerVer.route}?startFrom=chapter2") {
+                            // Clear back stack to prevent going back to main screen
+                            popUpTo(Routes.MainContent.route) {
+                                inclusive = true
+                            }
+                        }
+                    }
+                    // ... other cases ...
                 }
             }
         )
-
 
 
         CustomDropdownCard(
