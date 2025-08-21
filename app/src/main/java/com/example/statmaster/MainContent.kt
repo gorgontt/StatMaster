@@ -1,37 +1,31 @@
 package com.example.statmaster
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,22 +33,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
 import androidx.navigation.NavController
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.DarkBlue
-import com.example.statmaster.ui.theme.Transparent
+import com.example.statmaster.ui.theme.White
 
 @Composable
 fun MainContent(navController: NavController) {
@@ -68,9 +59,14 @@ fun MainContent(navController: NavController) {
         "Математическая статистика"
     )
 
-    val statOptions = listOf("Скопировать", "Вставить", "Настройки")
+    val statOptions = listOf("Опция 1", "Опция 2", "Опция 3")
 
-    Column(modifier = Modifier.fillMaxSize().background(BackgroundColor)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundColor)
+            .padding(horizontal = 30.dp)
+    ) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
@@ -88,7 +84,7 @@ fun MainContent(navController: NavController) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        CustomDropdownCard(
+        ExpandableCard(
             title = "Теория вероятностей",
             options = terVerOptions,
             onItemSelected = { selectedOption ->
@@ -99,118 +95,114 @@ fun MainContent(navController: NavController) {
                         navController.navigate(Routes.LevelsTerVer.createRoute("chapter2"))
                     "Одномерные случайные величины" ->
                         navController.navigate(Routes.LevelsTerVer.createRoute("chapter3"))
+                    // Добавьте обработку для остальных опций по необходимости
                 }
             }
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
 
-
-        CustomDropdownCard(
+        ExpandableCard(
             title = "Статистика",
             options = statOptions,
             onItemSelected = { selectedOption ->
                 // Обработка выбора для статистики
             }
         )
-
-
-
     }
-
 }
 
 @Composable
-fun CustomDropdownCard(
+fun ExpandableCard(
     title: String,
     options: List<String>,
     onItemSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    var selectedOption by remember { mutableStateOf("") }
-    val cardHorizontalPadding = 30.dp
+    val rotation by remember(expanded) {
+        mutableStateOf(if (expanded) 90f else 0f)
+    }
 
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = cardHorizontalPadding),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(30.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkBlue),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        // Карточка
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .shadow(
-                    elevation = 4.dp,
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black,
-                    shape = RoundedCornerShape(30.dp)
-                )
-                .clickable { expanded = true },
-            shape = RoundedCornerShape(9.dp),
-            colors = CardDefaults.cardColors(DarkBlue),
-            elevation = CardDefaults.cardElevation(defaultElevation = 9.dp)
-        ) {
+        Column {
             Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(16.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = title,
                     style = TextStyle(
-                        color = Color.White,
+                        color = White,
                         fontSize = 20.sp,
                         fontFamily = FontFamily(Font(R.font.jura))
-                    ),
-                    modifier = Modifier.weight(1f)
+                    )
                 )
+
                 Image(
                     painter = painterResource(id = R.drawable.arrow_icon_white),
-                    contentDescription = "Dropdown",
-
+                    contentDescription = "Expand/Collapse",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(rotation)
                 )
             }
-        }
 
-        Box(
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier
-                    .background(DarkBlue)
-                    .padding(start = 0.dp)
-                    .fillMaxWidth(0.85f)
-                    .align(Alignment.Center),
-
+            // Анимированное раскрытие списка опций
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically(animationSpec = tween(300)),
+                exit = shrinkVertically(animationSpec = tween(300))
             ) {
-                options.forEach { option ->
-                    DropdownMenuItem(
-                        onClick = {
-                            selectedOption = option
-                            onItemSelected(option)
-                            expanded = false
-                        },
-                        text = {
-                            Text(
-                                text = option,
-                                style = TextStyle(
-                                    fontFamily = FontFamily(Font(R.font.jura))
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp)
+                Column {
+                    Divider(color = White.copy(alpha = 0.3f), thickness = 1.dp)
+
+                    options.forEachIndexed { index, option ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onItemSelected(option)
+                                    expanded = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 16.dp)
+                        ) {
+
+
+                                Text(
+                                    text = option,
+                                    style = TextStyle(
+                                        color = White,
+                                        fontSize = 16.sp,
+                                        fontFamily = FontFamily(Font(R.font.jura))
+                                    ),
+                                    //modifier = Modifier.align(Alignment.CenterStart)
+                                )
+
+
+                        }
+
+                        // Разделитель между элементами (кроме последнего)
+                        if (index < options.size - 1) {
+                            Divider(
+                                color = White.copy(alpha = 0.2f),
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             )
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    if (option != options.last()) {
-                        //Divider(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
                     }
                 }
             }
         }
     }
 }
-
