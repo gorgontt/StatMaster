@@ -96,6 +96,8 @@ fun MainContent(navController: NavController) {
                         navController.navigate(Routes.LevelsTerVer.createRoute())
                     "Теоремы вероятностей" ->
                         navController.navigate(Routes.LevelsTerVer.createRoute("chapter2"))
+                    "Одномерные случайные величины" ->
+                        navController.navigate(Routes.LevelsTerVer.createRoute("chapter3"))
                 }
             }
         )

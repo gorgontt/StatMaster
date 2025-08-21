@@ -2,20 +2,18 @@ package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,11 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +38,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -66,8 +59,10 @@ import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
+import com.example.statmaster.ui.theme.DarkBlue2
 import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -94,7 +89,6 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
 
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    //var levels by remember { mutableStateOf(emptyList<Level>()) }
 
     LaunchedEffect(Unit) {
         try {
@@ -133,6 +127,16 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
                 delay(300) // Увеличили задержку для гарантии рендеринга
                 coroutineScope.launch {
                     lazyListState.animateScrollToItem(chapter2Index)
+                }
+            }
+        }
+
+        if (scrollToChapter == "chapter3" && levels.isNotEmpty()) {
+            val chapter3Index = levels.indexOfFirst { it.id == 22 || it.title == "Тест 10" }
+            if (chapter3Index >= 0) {
+                delay(300)
+                coroutineScope.launch {
+                    lazyListState.animateScrollToItem(chapter3Index)
                 }
             }
         }
@@ -175,7 +179,6 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
         content = { padding ->
             Column(
                 modifier = Modifier
-                    //.padding(padding)
                     .fillMaxSize()
             ) {
                 if (isLoading) {
@@ -190,7 +193,6 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
                 } else if (levels.isEmpty()) {
                     Text("Нет данных")
                 } else {
-                    // Используем LazyColumn вместо Column с вертикальным скроллом
                     LazyColumn(
                         state = lazyListState,
                         modifier = Modifier
@@ -203,6 +205,10 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
 
                             if (level.id == 13 || level.title == "Тест 5") {
                                 ChapterDivider("Глава 2")
+                            }
+
+                            if (level.id == 22 || level.title == "Тест 10") {
+                                ChapterDivider("Глава 3")
                             }
                         }
                     }
@@ -228,17 +234,13 @@ fun LoadingIndicator(progress: Float) {
         // Прогресс
         drawArc(
             color = Blue,
-            startAngle = -90f, // Начинаем сверху
+            startAngle = -90f,
             sweepAngle = sweepAngle,
             useCenter = false,
             style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
         )
     }
 }
-
-private const val DURATION = 1000
-
-
 
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
@@ -254,6 +256,7 @@ fun LevelCard(level: Level, navController: NavController) {
     // состояние для хранения количества правильных ответов
     var correctAnswers by remember { mutableStateOf(0) }
     var totalQuestions by remember { mutableStateOf(0) }
+    var isTestCompleted by remember { mutableStateOf(false) }
 
     // Загружаем данные теста, если это тест
     LaunchedEffect(level.id) {
@@ -272,6 +275,9 @@ fun LevelCard(level: Level, navController: NavController) {
 
                     if (userAnswers.values.all { it != -1 }) {
                         correctAnswers = calculateScore(questions, userAnswers).first
+//                        val (correct, total) = calculateScore(questions, userAnswers)
+//                        correctAnswers = correct
+//                        isTestCompleted = correct > 0
                     }
                 }
             }
@@ -280,14 +286,13 @@ fun LevelCard(level: Level, navController: NavController) {
 
     // Определяем цвет карточки
     val cardColor = when {
-        // Если это тест и он пройден - красный
-        (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> DarkGreen
-        // Если это уроыень и пройден - зеленый
+        (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Green
+
         (level.isCompleted || isCompletedLocally) -> Green
-        // Если это тест (но не пройден) - синий
-        level.title.startsWith("Тест") -> Blue
-        // Во всех остальных случаях - цвет фона
-        else -> BackgroundColor
+
+        level.title.startsWith("Тест") -> White
+
+        else -> White
     }
 
     Card(
@@ -299,12 +304,12 @@ fun LevelCard(level: Level, navController: NavController) {
                 elevation = 4.dp,
                 ambientColor = Color.Black,
                 spotColor = Color.Black,
-                shape = RoundedCornerShape(40.dp)
+                shape = RoundedCornerShape(33.dp)
             )
             .clickable {
                 navController.navigate("documentation_level/${level.id}")
             },
-        shape = RoundedCornerShape(40.dp),
+        shape = RoundedCornerShape(33.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
@@ -342,13 +347,19 @@ fun LevelCard(level: Level, navController: NavController) {
                         fontFamily = FontFamily(Font(R.font.jura)))
                 )
 
-//                if (level.isCompleted || isCompletedLocally) {
-//                    Image(
-//                        modifier = Modifier.padding(start = 5.dp),
-//                        painter = painterResource(id = R.drawable.tick_icon),
-//                        contentDescription = "Completed"
-//                    )
-//                }
+                if (level.title.startsWith("Тест")) {
+                    val starIcon = if (level.isCompleted || isCompletedLocally || isTestCompleted) {
+                        R.drawable.star_icon_yellow // Тест выполнен
+                    } else {
+                        R.drawable.star_icon_gray // Тест не выполнен
+                    }
+
+                    Image(
+                        modifier = Modifier.padding(start = 5.dp),
+                        painter = painterResource(id = starIcon),
+                        contentDescription = if (starIcon == R.drawable.star_icon_yellow) "Completed" else "NotCompleted"
+                    )
+                }
             }
 
             if (level.title.startsWith("Тест") && correctAnswers > 0) {
@@ -375,21 +386,22 @@ fun ChapterDivider(
     title: String,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Card (
         modifier = modifier
             .padding(vertical = 20.dp),
-        contentAlignment = Alignment.CenterStart
+        shape = RoundedCornerShape(0.dp, 30.dp, 30.dp, 0.dp),
+        colors = CardDefaults.cardColors(containerColor = DarkBlue2)
+       // contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text = title,
             style = TextStyle(
-                color = Color.Black,
+                color = White,
                 fontSize = 24.sp,
                 fontFamily = FontFamily(Font(R.font.jura_semibold))
             ),
             modifier = Modifier
-                .background(BackgroundColor)
-                .padding(horizontal = 16.dp)
+                .padding(top = 10.dp, bottom = 10.dp, start = 20.dp, end = 20.dp)
         )
     }
 }
