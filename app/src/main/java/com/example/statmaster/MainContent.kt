@@ -1,5 +1,6 @@
 package com.example.statmaster
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -142,11 +143,11 @@ fun CustomDropdownCard(
                     elevation = 4.dp,
                     ambientColor = Color.Black,
                     spotColor = Color.Black,
-                    shape = RoundedCornerShape(9.dp)
+                    shape = RoundedCornerShape(30.dp)
                 )
                 .clickable { expanded = true },
             shape = RoundedCornerShape(9.dp),
-            colors = CardDefaults.cardColors(BackgroundColor),
+            colors = CardDefaults.cardColors(DarkBlue),
             elevation = CardDefaults.cardElevation(defaultElevation = 9.dp)
         ) {
             Row(
@@ -156,16 +157,16 @@ fun CustomDropdownCard(
                 Text(
                     text = title,
                     style = TextStyle(
-                        color = Black,
+                        color = Color.White,
                         fontSize = 20.sp,
                         fontFamily = FontFamily(Font(R.font.jura))
                     ),
                     modifier = Modifier.weight(1f)
                 )
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
+                Image(
+                    painter = painterResource(id = R.drawable.arrow_icon_white),
                     contentDescription = "Dropdown",
-                    tint = Black
+
                 )
             }
         }
@@ -178,7 +179,7 @@ fun CustomDropdownCard(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
                 modifier = Modifier
-                    .background(BackgroundColor)
+                    .background(DarkBlue)
                     .padding(start = 0.dp)
                     .fillMaxWidth(0.85f)
                     .align(Alignment.Center),
