@@ -22,4 +22,6 @@ val Transparent = Color(0x00FFFFFF)
 val DarkBlue = Color(0xFF316AFF)
 val DarkBlue2 = Color(0xFF0A0B39)
 val DarkGreen = Color(0xFF9AD56C)
+val RedColor = Color(0xFFFF0008)
+
 

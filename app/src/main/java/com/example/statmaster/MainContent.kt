@@ -126,8 +126,8 @@ fun ExpandableCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        shape = RoundedCornerShape(30.dp),
+            .padding(vertical = 3.dp),
+        shape = RoundedCornerShape(33.dp),
         colors = CardDefaults.cardColors(containerColor = DarkBlue),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
@@ -136,7 +136,7 @@ fun ExpandableCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { expanded = !expanded }
-                    .padding(16.dp),
+                    .padding(20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {

@@ -10,6 +10,7 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,6 +77,7 @@ import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.RedColor
 import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -256,14 +259,15 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         topBar = {
             TopAppBar(
                 modifier = Modifier.background(BackgroundColor),
+                colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
                 title = { Text(currentLevel?.title ?: testData?.title ?: "Документация уровня") },
                 navigationIcon = {
                     IconButton({
                         navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
                         navController.popBackStack()
                     }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.back_icon),
+                        Image(
+                            painter = painterResource(id = R.drawable.arrow_icon_back),
                             contentDescription = "Back"
                         )
                     }
@@ -382,12 +386,16 @@ fun TestBottomBar(
             Card(
                 modifier = Modifier
                     .padding(start = 30.dp)
-                    .border(2.dp, Green, RoundedCornerShape(30.dp))
+//                    .border(2.dp, Green, RoundedCornerShape(30.dp))
                     .shadow(4.dp, RoundedCornerShape(30.dp)),
                 shape = RoundedCornerShape(30.dp)
             ) {
                 Row(
-                    modifier = Modifier.background(BackgroundColor),
+                    modifier = Modifier.background(when {
+                        testCompleted -> Green
+                        answersChecked -> Green
+                        else -> DarkBlue
+                    }),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -399,6 +407,11 @@ fun TestBottomBar(
                             "0"
                         },
                         style = TextStyle(
+                            color = when {
+                                testCompleted -> Color.Black
+                                answersChecked -> Color.Black
+                                else -> Color.White
+                            },
                             fontSize = 20.sp,
                             fontFamily = FontFamily(Font(R.font.jura))
                         )
@@ -407,6 +420,11 @@ fun TestBottomBar(
                         modifier = Modifier.padding(end = 10.dp, top = 15.dp, bottom = 15.dp),
                         text = "/$totalQuestions",
                         style = TextStyle(
+                            color = when {
+                                testCompleted -> Color.Black
+                                answersChecked -> Color.Black
+                                else -> Color.White
+                            },
                             fontSize = 20.sp,
                             fontFamily = FontFamily(Font(R.font.jura))
                         )
@@ -417,7 +435,7 @@ fun TestBottomBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 10.dp, end = 30.dp)
-                    .border(2.dp, Green, RoundedCornerShape(30.dp))
+//                    .border(2.dp, Green, RoundedCornerShape(30.dp))
                     .shadow(4.dp, RoundedCornerShape(30.dp)),
                 shape = RoundedCornerShape(30.dp)
             ) {
@@ -437,9 +455,9 @@ fun TestBottomBar(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
-                            testCompleted -> Green.copy(alpha = 0.3f)
+                            testCompleted -> Green
                             answersChecked -> Green
-                            else -> Blue
+                            else -> DarkBlue
                         }
                     )
                 ) {
@@ -451,6 +469,11 @@ fun TestBottomBar(
                             else -> "Проверить ответы"
                         },
                         style = TextStyle(
+                            color = when {
+                                testCompleted -> Color.Black
+                                answersChecked -> Color.Black
+                                else -> Color.White
+                            },
                             fontSize = 20.sp,
                             fontFamily = FontFamily(Font(R.font.jura))
                         )
@@ -476,23 +499,25 @@ fun LessonBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 30.dp)
-                .border(2.dp, Green, RoundedCornerShape(30.dp))
+                //.background(Green)
+                //.border(2.dp, Green, RoundedCornerShape(30.dp))
                 .shadow(4.dp, RoundedCornerShape(30.dp)),
-            shape = RoundedCornerShape(30.dp)
+            shape = RoundedCornerShape(30.dp),
+            colors = CardDefaults.cardColors(Green)
         ) {
             Button(
                 onClick = onCompleteLevel,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading && !isLevelCompleted,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isLevelCompleted) Green else BackgroundColor
+                    containerColor = if (isLevelCompleted) Green else DarkBlue
                 )
             ) {
                 Text(
                     modifier = Modifier.padding(vertical = 10.dp),
                     text = if (isLevelCompleted) "Урок пройден" else "Завершить урок",
                     style = TextStyle(
-                        color = Black,
+                        color = if (isLevelCompleted) Black else White,
                         fontSize = 20.sp,
                         fontFamily = FontFamily(Font(R.font.jura))
                     )
@@ -562,11 +587,11 @@ fun TestContent(
             .verticalScroll(rememberScrollState())
     ) {
         Text(
+            modifier = Modifier.padding(bottom = 20.dp),
             text = test.title,
             style = TextStyle(
                 fontSize = 24.sp,
                 fontFamily = FontFamily(Font(R.font.jura_semibold))),
-            modifier = Modifier.padding(bottom = 16.dp)
         )
 
         questions.forEach { question ->
@@ -763,8 +788,14 @@ fun QuestionCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = BackgroundColor)
+            .padding(vertical = 8.dp)
+            .shadow(
+                elevation = 4.dp,
+                ambientColor = Color.Black,
+                spotColor = Color.Black,
+                shape = RoundedCornerShape(10.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = BackgroundColor),
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -775,7 +806,7 @@ fun QuestionCard(
                     fontSize = 18.sp,
                     fontFamily = FontFamily(Font(R.font.jura_semibold))
                 ),
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 15.dp)
             )
 
             question.answers.forEach { answer ->
@@ -784,23 +815,23 @@ fun QuestionCard(
                 val showCorrectness = checked && (isSelected || isCorrect)
 
                 val backgroundColor = when {
-                    !showCorrectness -> BackgroundColor
-                    isCorrect -> Color.Green.copy(alpha = 0.2f)
-                    isSelected && !isCorrect -> Color.Red.copy(alpha = 0.2f)
-                    else -> BackgroundColor
+                    !showCorrectness -> White
+                    isCorrect -> Green
+                    isSelected && !isCorrect -> RedColor
+                    else -> White
                 }
 
                 val borderColor = when {
                     isSelected -> DarkBlue
-                    else -> Color.LightGray
+                    else -> White
                 }
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp)
-                        .border(1.dp, borderColor, RoundedCornerShape(5.dp))
-                        .background(backgroundColor, RoundedCornerShape(5.dp))
+                        .border(1.dp, borderColor, RoundedCornerShape(50.dp))
+                        .background(backgroundColor, RoundedCornerShape(50.dp))
                         .clickable(
                             enabled = !checked && !testCompleted, // Блокируем изменения после завершения
                             onClick = { onAnswerSelected(answer.id) }
@@ -808,6 +839,7 @@ fun QuestionCard(
                         .padding(12.dp)
                 ) {
                     Text(
+                        modifier = Modifier.padding(vertical = 10.dp),
                         text = answer.answerText,
                         style = TextStyle(
                             fontSize = 16.sp,

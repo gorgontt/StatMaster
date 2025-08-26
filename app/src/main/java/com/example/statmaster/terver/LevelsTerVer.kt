@@ -173,7 +173,9 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
             TopAppBar(
                 title = { Text("Теория вероятностей") },
                 colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
-                navigationIcon = { /* ... */ }
+                navigationIcon = {
+                    Image(painter = painterResource(R.drawable.arrow_icon_back), contentDescription = "backIcon")
+                }
             )
         },
         content = { padding ->
@@ -304,12 +306,12 @@ fun LevelCard(level: Level, navController: NavController) {
                 elevation = 4.dp,
                 ambientColor = Color.Black,
                 spotColor = Color.Black,
-                shape = RoundedCornerShape(33.dp)
+                shape = RoundedCornerShape(60.dp)
             )
             .clickable {
                 navController.navigate("documentation_level/${level.id}")
             },
-        shape = RoundedCornerShape(33.dp),
+        shape = RoundedCornerShape(60.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
         colors = CardDefaults.cardColors(containerColor = cardColor)
     ) {
@@ -355,7 +357,7 @@ fun LevelCard(level: Level, navController: NavController) {
                     }
 
                     Image(
-                        modifier = Modifier.padding(start = 5.dp),
+                        modifier = Modifier.padding(start = 5.dp, end = 10.dp),
                         painter = painterResource(id = starIcon),
                         contentDescription = if (starIcon == R.drawable.star_icon_yellow) "Completed" else "NotCompleted"
                     )

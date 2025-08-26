@@ -40,7 +40,9 @@ import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
+import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
+import com.example.statmaster.ui.theme.White
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +133,7 @@ fun MainClass(navController: NavController){
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(BackgroundColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = BackgroundColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = White),
                 ) {
 
 
@@ -190,7 +192,7 @@ fun MainClass(navController: NavController){
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Blue),
-                    colors = ButtonDefaults.buttonColors(containerColor = Blue),
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
                 ) {
 
 
@@ -198,7 +200,7 @@ fun MainClass(navController: NavController){
                         modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
                         text = "Войти",
                         style = TextStyle(
-                            color = Black, fontSize = 20.sp, fontFamily = FontFamily(
+                            color = White, fontSize = 20.sp, fontFamily = FontFamily(
                                 Font(R.font.jura)
                             )
                         )
