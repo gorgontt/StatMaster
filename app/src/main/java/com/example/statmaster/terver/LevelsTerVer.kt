@@ -143,6 +143,16 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
                 }
             }
         }
+
+        if (scrollToChapter == "chapter4" && levels.isNotEmpty()) {
+            val chapter3Index = levels.indexOfFirst { it.id == 35 || it.title == "Итоговый тест 3" }
+            if (chapter3Index >= 0) {
+                delay(300)
+                coroutineScope.launch {
+                    lazyListState.animateScrollToItem(chapter3Index)
+                }
+            }
+        }
     }
 
 
@@ -290,13 +300,19 @@ fun LevelCard(level: Level, navController: NavController) {
                         q.id to sharedPref.getInt("answer_${level.id}_${q.id}", -1)
                     }
 
-                    if (userAnswers.values.all { it != -1 }) {
-                        correctAnswers = calculateScore(questions, userAnswers).first
-//                        val (correct, total) = calculateScore(questions, userAnswers)
-//                        correctAnswers = correct
-//                        isTestCompleted = correct > 0
+                    // Проверяем, все ли вопросы отвечены
+                    val allQuestionsAnswered = userAnswers.values.all { it != -1 }
+
+                    if (allQuestionsAnswered) {
+                        val (correct, total) = calculateScore(questions, userAnswers)
+                        correctAnswers = correct
+                        isTestCompleted = true // Устанавливаем флаг завершения теста
+                    } else {
+                        isTestCompleted = false
+                        correctAnswers = 0
                     }
                 }
+
             }
         }
     }
@@ -387,7 +403,7 @@ fun LevelCard(level: Level, navController: NavController) {
                 }
             }
 
-            if (level.title.startsWith("Тест") && correctAnswers > 0) {
+            if ((level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) && isTestCompleted) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row (modifier = Modifier.fillMaxWidth()
                     .padding(start = 10.dp, end = 10.dp)){
@@ -396,23 +412,7 @@ fun LevelCard(level: Level, navController: NavController) {
                         textAlign = TextAlign.Center,
                         text = "Правильных ответов: $correctAnswers/$totalQuestions",
                         style = TextStyle(
-                            color = Black,
-                            fontSize = 14.sp,
-                            fontFamily = FontFamily(Font(R.font.jura_semibold)))
-                    )
-                }
-            }
-
-            if (level.title.startsWith("Итоговый тест") && correctAnswers > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row (modifier = Modifier.fillMaxWidth()
-                    .padding(start = 10.dp, end = 10.dp)){
-                    Text(
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center,
-                        text = "Правильных ответов: $correctAnswers/$totalQuestions",
-                        style = TextStyle(
-                            color = White,
+                            color = if (level.title.startsWith("Итоговый тест")) White else Black,
                             fontSize = 14.sp,
                             fontFamily = FontFamily(Font(R.font.jura_semibold)))
                     )

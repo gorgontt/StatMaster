@@ -53,7 +53,19 @@ fun MainContent(navController: NavController) {
         "Математическая статистика"
     )
 
-    val statOptions = listOf("Опция 1", "Опция 2", "Опция 3")
+    val statOptions = listOf(
+        "Статистика как наука",
+        "Статистическое наблюдение",
+        "Сводка и группировка статистических данных",
+        "Абсолютные и относительные статистические величины",
+        "Средние величины",
+        "Показатели вариации",
+        "Теория выборочного метода",
+        "Ряды динамики",
+        "Статистическое изучение взаимосвязей",
+        "Индексный метод в статистике"
+
+    )
 
     Column(
         modifier = Modifier
@@ -89,7 +101,8 @@ fun MainContent(navController: NavController) {
                         navController.navigate(Routes.LevelsTerVer.createRoute("chapter2"))
                     "Одномерные случайные величины" ->
                         navController.navigate(Routes.LevelsTerVer.createRoute("chapter3"))
-                    // Добавьте обработку для остальных опций по необходимости
+                    "Многомерные случайные величины" ->
+                        navController.navigate(Routes.LevelsTerVer.createRoute("chapter4"))
                 }
             }
         )
