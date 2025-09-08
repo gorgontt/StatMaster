@@ -137,7 +137,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                 isLevelCompleted = loadedLevel?.isCompleted ?: sharedPref.getBoolean("level_$levelId", false)
 
-                if (loadedLevel?.title?.startsWith("Тест") == true) {
+                if ((loadedLevel?.title?.startsWith("Тест") == true) || (loadedLevel?.title?.startsWith("Итоговый") == true)) {
                     // Загрузка теста
                     val test = levelRepository.getTestByLevelId(levelId)
                     test?.let {

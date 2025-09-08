@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -59,9 +60,11 @@ import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
+import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.DarkBlue2
 import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.Pink
 import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -122,7 +125,7 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
     // Прокрутка к нужной главе
     LaunchedEffect(scrollToChapter, levels.isNotEmpty()) {
         if (scrollToChapter == "chapter2" && levels.isNotEmpty()) {
-            val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Тест 5" }
+            val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Итоговый тест 1" }
             if (chapter2Index >= 0) {
                 delay(300) // Увеличили задержку для гарантии рендеринга
                 coroutineScope.launch {
@@ -132,7 +135,7 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
         }
 
         if (scrollToChapter == "chapter3" && levels.isNotEmpty()) {
-            val chapter3Index = levels.indexOfFirst { it.id == 22 || it.title == "Тест 10" }
+            val chapter3Index = levels.indexOfFirst { it.id == 22 || it.title == "Итоговый тест 2" }
             if (chapter3Index >= 0) {
                 delay(300)
                 coroutineScope.launch {
@@ -174,7 +177,15 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
                 title = { Text("Теория вероятностей") },
                 colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
                 navigationIcon = {
-                    Image(painter = painterResource(R.drawable.arrow_icon_back), contentDescription = "backIcon")
+                    IconButton({
+                        navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+                        navController.popBackStack()
+                    }) {
+                        Image(
+                            painter = painterResource(id = R.drawable.arrow_icon_back),
+                            contentDescription = "Back"
+                        )
+                    }
                 }
             )
         },
@@ -205,12 +216,16 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
                         items(levels) { level ->
                             LevelCard(level, navController)
 
-                            if (level.id == 13 || level.title == "Тест 5") {
+                            if (level.id == 13 || level.title == "Итоговый тест 1") {
                                 ChapterDivider("Глава 2")
                             }
 
-                            if (level.id == 22 || level.title == "Тест 10") {
+                            if (level.id == 22 || level.title == "Итоговый тест 2") {
                                 ChapterDivider("Глава 3")
+                            }
+
+                            if (level.id == 35 || level.title == "Итоговый тест 3") {
+                                ChapterDivider("Глава 4")
                             }
                         }
                     }
@@ -262,7 +277,7 @@ fun LevelCard(level: Level, navController: NavController) {
 
     // Загружаем данные теста, если это тест
     LaunchedEffect(level.id) {
-        if (level.title.startsWith("Тест")) {
+        if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) {
             coroutineScope.launch {
                 val test = levelRepository.getTestByLevelId(level.id)
                 test?.let {
@@ -289,12 +304,20 @@ fun LevelCard(level: Level, navController: NavController) {
     // Определяем цвет карточки
     val cardColor = when {
         (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Green
+        (level.title.startsWith("Итоговый") && (level.isCompleted || isCompletedLocally)) -> DarkBlue
 
         (level.isCompleted || isCompletedLocally) -> Green
 
-        level.title.startsWith("Тест") -> White
+        (level.title.startsWith("Тест") || level.title.startsWith("Итоговый")) -> White
 
         else -> White
+    }
+
+    val textColor = when {
+        (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Black
+        (level.title.startsWith("Итоговый") && (level.isCompleted || isCompletedLocally)) -> Color.Yellow
+
+        else -> Black
     }
 
     Card(
@@ -326,7 +349,7 @@ fun LevelCard(level: Level, navController: NavController) {
             Text(
                 text = level.title,
                 style = TextStyle(
-                    color = Black,
+                    color = textColor,
                     fontSize = 20.sp,
                     fontFamily = FontFamily(Font(R.font.jura_semibold)))
             )
@@ -344,12 +367,12 @@ fun LevelCard(level: Level, navController: NavController) {
                     textAlign = TextAlign.Center,
                     text = level.description,
                     style = TextStyle(
-                        color = Black,
+                        color = textColor,
                         fontSize = 14.sp,
                         fontFamily = FontFamily(Font(R.font.jura)))
                 )
 
-                if (level.title.startsWith("Тест")) {
+                if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый")) {
                     val starIcon = if (level.isCompleted || isCompletedLocally || isTestCompleted) {
                         R.drawable.star_icon_yellow // Тест выполнен
                     } else {
@@ -374,6 +397,22 @@ fun LevelCard(level: Level, navController: NavController) {
                         text = "Правильных ответов: $correctAnswers/$totalQuestions",
                         style = TextStyle(
                             color = Black,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily(Font(R.font.jura_semibold)))
+                    )
+                }
+            }
+
+            if (level.title.startsWith("Итоговый тест") && correctAnswers > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row (modifier = Modifier.fillMaxWidth()
+                    .padding(start = 10.dp, end = 10.dp)){
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        text = "Правильных ответов: $correctAnswers/$totalQuestions",
+                        style = TextStyle(
+                            color = White,
                             fontSize = 14.sp,
                             fontFamily = FontFamily(Font(R.font.jura_semibold)))
                     )
