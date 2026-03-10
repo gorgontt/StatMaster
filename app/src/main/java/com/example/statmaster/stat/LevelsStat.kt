@@ -1,4 +1,7 @@
-package com.example.statmaster.terver
+package com.example.statmaster.stat
+
+import com.example.statmaster.terver.LevelRepository
+import com.example.statmaster.terver.calculateScore
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -7,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,12 +60,15 @@ import androidx.navigation.NavController
 import com.example.statmaster.AuthManager
 import com.example.statmaster.Level
 import com.example.statmaster.R
+import com.example.statmaster.terver.LevelStatRepository
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.DarkBlue2
+import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.Pink
 import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -70,10 +77,10 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
-fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) {
+fun LevelsStat(navController: NavController, scrollToChapter: String? = null) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
-    val levelRepository = remember { LevelRepository(authManager, context) }
+    val levelRepository = remember { LevelStatRepository(authManager, context) }
     var levels = remember { mutableStateListOf<Level>() }
     var isLoading by remember { mutableStateOf(true) }
     var connectionError by remember { mutableStateOf(false) }
@@ -181,7 +188,7 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
         modifier = Modifier.background(BackgroundColor),
         topBar = {
             TopAppBar(
-                title = { Text("Теория вероятностей") },
+                title = { Text("Статистика") },
                 colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
                 navigationIcon = {
                     IconButton({
@@ -269,12 +276,12 @@ fun LoadingIndicator(progress: Float) {
 @Composable
 fun LevelCard(level: Level, navController: NavController) {
     val context = LocalContext.current
-    val levelRepository = remember { LevelRepository(AuthManager(context), context) }
+    val levelRepository = remember { LevelStatRepository(AuthManager(context), context) }
     val coroutineScope = rememberCoroutineScope()
 
     val isCompletedLocally = remember(level.id) {
         context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
-            .getBoolean("level_${level.id}", false)
+            .getBoolean("level_stat_${level.id}", false)
     }
 
     // состояние для хранения количества правильных ответов
@@ -294,7 +301,7 @@ fun LevelCard(level: Level, navController: NavController) {
                     // Проверяем сохраненные ответы
                     val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                     val userAnswers = questions.associate { q ->
-                        q.id to sharedPref.getInt("answer_${level.id}_${q.id}", -1)
+                        q.id to sharedPref.getInt("answer_stat_${level.id}_${q.id}", -1)
                     }
 
                     // Проверяем, все ли вопросы отвечены
@@ -429,7 +436,7 @@ fun ChapterDivider(
             .padding(vertical = 20.dp),
         shape = RoundedCornerShape(0.dp, 30.dp, 30.dp, 0.dp),
         colors = CardDefaults.cardColors(containerColor = DarkBlue2)
-       // contentAlignment = Alignment.CenterStart
+        // contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text = title,

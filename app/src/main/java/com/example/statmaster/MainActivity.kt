@@ -96,11 +96,18 @@ class AuthManager(
 
     fun SignInWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
         try {
-            supabase.auth.signInWith(Email) {
+            val result = supabase.auth.signInWith(Email) {
                 email = emailValue
                 password = passwordValue
             }
-            emit(AuthResponse.Succes)
+
+            // Проверяем, что сессия действительно создана
+            val session = supabase.auth.currentSessionOrNull()
+            if (session != null) {
+                emit(AuthResponse.Succes)
+            } else {
+                emit(AuthResponse.Error("Не удалось создать сессию"))
+            }
         } catch (e: Exception) {
             emit(AuthResponse.Error(e.localizedMessage ?: "Неверный email или пароль"))
         }
@@ -130,44 +137,31 @@ class AuthManager(
         val credentialManager = CredentialManager.create(context)
 
         try {
-            val result = credentialManager.getCredential(
-                request = request,
-                context = context
-            )
+            val result = credentialManager.getCredential(request = request, context = context)
             val credential = result.credential
             val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
             val googleIdToken = googleIdTokenCredential.idToken
 
-            Log.i(TAG, "Google ID Token: $googleIdToken")
-            Toast.makeText(context, "Вы успешно вошли!", Toast.LENGTH_LONG).show()
-
-            supabase.auth.signInWith(IDToken) {
-                idToken = googleIdToken
-                provider = Google
-                //nonce = rawNonce
-            }
-
+            // Убираем дублирующий вызов signInWith
             supabase.auth.signInWith(IDToken) {
                 idToken = googleIdToken
                 provider = Google
             }
-            emit(AuthResponse.Succes)
+
+            // Ждем завершения аутентификации
+            val session = supabase.auth.currentSessionOrNull()
+            if (session != null) {
+                emit(AuthResponse.Succes)
+            } else {
+                emit(AuthResponse.Error("Не удалось создать сессию через Google"))
+            }
         } catch (e: Exception) {
             emit(AuthResponse.Error(e.localizedMessage ?: "Ошибка входа через Google"))
-        } catch (e: GetCredentialException) {
-            Log.e(TAG, "GetCredentialException", e)
-            Toast.makeText(context, "Ошибка входа: ${e.message}", Toast.LENGTH_LONG).show()
-        } catch (e: GoogleIdTokenParsingException) {
-            Log.e(TAG, "GoogleIdTokenParsingException", e)
-            Toast.makeText(context, "Ошибка обработки токена: ${e.message}", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error", e)
-            Toast.makeText(context, "Неизвестная ошибка: ${e.message}", Toast.LENGTH_LONG).show()
         }
-
-
-
     }
+
+
+
 
     @Serializable
     data class TestLevel(val id: Int? = null)

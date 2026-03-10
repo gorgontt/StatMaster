@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.statmaster.auth.MainClass
+import com.example.statmaster.stat.LevelsStat
 import com.example.statmaster.terver.DocumentationLevelTerVer
 import com.example.statmaster.terver.LevelsTerVer
 
@@ -16,7 +17,6 @@ sealed class Routes(val route: String) {
     object MainClass : Routes("main_class")
     object MainContent : Routes("main_content")
 
-    // Измененный маршрут с параметром
     object LevelsTerVer : Routes("levels_terver/{scrollTo}") {
         fun createRoute(scrollTo: String? = null) =
             "levels_terver/${scrollTo ?: "default"}"
@@ -24,6 +24,11 @@ sealed class Routes(val route: String) {
 
     object DocumentationLevel : Routes("documentation_level/{levelId}") {
         fun createRoute(levelId: Int) = "documentation_level/$levelId"
+    }
+
+    object LevelsStat : Routes("levels_stat/{scrollTo}") {
+        fun createRoute(scrollTo: String? = null) =
+            "levels_stat/${scrollTo ?: "default"}"
     }
 }
 
@@ -40,7 +45,7 @@ fun Navigation() {
         composable(Routes.MainClass.route) { MainClass(navController) }
         composable(Routes.MainContent.route) { MainContent(navController) }
 
-        // Обновленный composable с обработкой параметра
+        //Terver
         composable(
             route = Routes.LevelsTerVer.route,
             arguments = listOf(
@@ -63,6 +68,24 @@ fun Navigation() {
         ) { backStackEntry ->
             val levelId = backStackEntry.arguments?.getInt("levelId")
             DocumentationLevelTerVer(navController, levelId)
+        }
+
+        //Stat
+
+        composable(
+            route = Routes.LevelsStat.route,
+            arguments = listOf(
+                navArgument("scrollTo") {
+                    type = NavType.StringType
+                    defaultValue = "default"
+                }
+            )
+        ) { backStackEntry ->
+            val scrollTo = backStackEntry.arguments?.getString("scrollTo")
+            LevelsStat(
+                navController = navController,
+                scrollToChapter = scrollTo.takeIf { it != "default" }
+            )
         }
     }
 }
