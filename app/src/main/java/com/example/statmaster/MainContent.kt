@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -40,8 +44,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.statmaster.ui.theme.BackgroundColor
+import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.Transparent
 import com.example.statmaster.ui.theme.White
 
 @Composable
@@ -124,39 +130,57 @@ fun MainContent(navController: NavController) {
             }
         )
 
+        Spacer(modifier = Modifier.height(20.dp))
+
         Card(
             modifier = Modifier
+                .background(Transparent)
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
                 .clickable {
-                    navController.navigate(Routes.AdaptiveTest.createRoute(null))
+                    // Открываем выбор темы для адаптивного теста
+                    navController.navigate("adaptive_topic_selection")
                 },
-            colors = CardDefaults.cardColors(containerColor = Green)
+            shape = RoundedCornerShape(60.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
+            colors = CardDefaults.cardColors(containerColor = White)
         ) {
             Row(
                 modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.facebook_icon),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.padding(15.dp),
+                    tint = DarkBlue,
+                    painter = painterResource(id = R.drawable.brain),
+                    contentDescription = null
                 )
-                Spacer(modifier = Modifier.width(16.dp))
                 Column {
                     Text(
                         text = "Адаптивный тест",
                         fontSize = 18.sp,
+                        color = DarkBlue,
                         fontFamily = FontFamily(Font(R.font.jura_semibold))
                     )
                     Text(
-                        text = "Тест подстраивается под ваш уровень",
+                        text = "Тест подбирает вопросы под ваш уровень",
+                        color = DarkBlue,
                         fontSize = 14.sp
                     )
                 }
             }
         }
+
+
     }
+}
+
+// Создайте новый экран выбора темы
+@Composable
+fun AdaptiveTopicSelection(navController: NavController) {
+    // Показывает список доступных тем
+    // При выборе → AdaptiveTestScreen с topicId
 }
 
 @Composable

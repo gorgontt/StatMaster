@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.statmaster.adaptive.AdaptiveTestScreen
+import com.example.statmaster.adaptive.AdaptiveTopicSelectionScreen
 import com.example.statmaster.auth.MainClass
 import com.example.statmaster.stat.LevelsStat
 import com.example.statmaster.terver.DocumentationLevelTerVer
@@ -32,8 +33,9 @@ sealed class Routes(val route: String) {
             "levels_stat/${scrollTo ?: "default"}"
     }
 
+    object AdaptiveTopicSelection : Routes("adaptive_topic_selection")
     object AdaptiveTest : Routes("adaptive_test/{topicId}") {
-        fun createRoute(topicId: Int?) = "adaptive_test/${topicId ?: 0}"
+        fun createRoute(topicId: Int) = "adaptive_test/$topicId"
     }
 }
 
@@ -93,16 +95,21 @@ fun Navigation() {
             )
         }
 
+        composable(Routes.AdaptiveTopicSelection.route) {
+            AdaptiveTopicSelectionScreen(navController = navController)
+        }
+
         composable(
             route = Routes.AdaptiveTest.route,
             arguments = listOf(navArgument("topicId") { type = NavType.IntType })
         ) { backStackEntry ->
-            val topicId = backStackEntry.arguments?.getInt("topicId")
+            val topicId = backStackEntry.arguments?.getInt("topicId") ?: 0
             AdaptiveTestScreen(
                 navController = navController,
                 topicId = topicId,
                 topicTitle = "Адаптивный тест"
             )
         }
+
     }
 }
