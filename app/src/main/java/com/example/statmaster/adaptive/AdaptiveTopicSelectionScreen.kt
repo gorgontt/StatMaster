@@ -31,8 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import com.example.statmaster.Test
+import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.LightBlue
 import com.example.statmaster.ui.theme.RedColor
+import com.example.statmaster.ui.theme.Transparent
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
@@ -74,7 +76,38 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
                     containerColor = BackgroundColor
                 )
             )
+        },
+
+        bottomBar = {
+            BottomAppBar(
+                containerColor = BackgroundColor,
+                contentColor = BackgroundColor,
+            ){
+                Button(
+                    onClick = {if (selectedTopicId != null) {
+                        navController.navigate("adaptive_test/${selectedTopicId}")
+                    }},
+                    //contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BackgroundColor),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (selectedTopicId != null) DarkBlue else LightBlue                     ),
+                ) {
+
+
+                    Text(
+                        modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
+                        text = "Начать тест",
+                        style = TextStyle(
+                            color = White, fontSize = 20.sp, fontFamily = FontFamily(
+                                Font(R.font.jura)
+                            )
+                        )
+                    )
+                }
+            }
         }
+
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -88,7 +121,7 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 50.dp)
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
                 ) {
                     Text(
                         text = "Выберите тему для адаптивного тестирования:",
@@ -111,27 +144,80 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
 
                    //Spacer(modifier = Modifier.weight(1f))
 
-                    Button(
-                        onClick = {
-                            if (selectedTopicId != null) {
-                                navController.navigate("adaptive_test/${selectedTopicId}")
-                            }
-                        },
-                        modifier = Modifier
-                            .background(DarkBlue),
-                        enabled = selectedTopicId != null,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (selectedTopicId != null) White else DarkBlue
-                        ),
-                        shape = RoundedCornerShape(60.dp)
-                    ) {
-                        Text(
-                            text = "Начать тест",
-                            fontSize = 18.sp,
-                            color = White,
-                            fontFamily = FontFamily(Font(R.font.jura))
-                        )
-                    }
+//                    Card(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .align(alignment = Alignment.CenterHorizontally)
+//                            .background(Transparent)
+//                            .shadow(
+//                                elevation = 4.dp,
+//                                ambientColor = Color.Black,
+//                                spotColor = Color.Black,
+//                                shape = RoundedCornerShape(30.dp)
+//                            )
+//
+//                            .clickable {
+//                                //navController.navigate("players_list/компания")
+//                            },
+//                        shape = RoundedCornerShape(30.dp),
+//                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
+//                    ){
+//
+//                        Button(
+//                            onClick = {if (selectedTopicId != null) {
+//                                navController.navigate("adaptive_test/${selectedTopicId}")
+//                            }},
+//                            //contentAlignment = Alignment.Center,
+//                            modifier = Modifier
+//                                .fillMaxWidth()
+//                                .background(BackgroundColor),
+//                            colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
+//                        ) {
+//
+//
+//                            Text(
+//                                modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
+//                                text = "Создать аккаунт",
+//                                style = TextStyle(
+//                                    color = Black, fontSize = 20.sp, fontFamily = FontFamily(
+//                                        Font(R.font.jura)
+//                                    )
+//                                )
+//                            )
+//                        }
+//
+//
+//                    }
+
+
+
+
+
+//                    Button(
+//                        modifier = Modifier
+//                            .fillMaxWidth()
+//                            .background(BackgroundColor),
+//                        colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
+//                        shape = RoundedCornerShape(60.dp),
+//                        enabled = selectedTopicId != null,
+//                        //colors = ButtonDefaults.buttonColors(
+//                        //    containerColor = if (selectedTopicId != null) White else DarkBlue
+//                        //),
+//                        onClick = {
+//                            if (selectedTopicId != null) {
+//                                navController.navigate("adaptive_test/${selectedTopicId}")
+//                            }
+//                        },
+//
+//
+//                    ) {
+//                        Text(
+//                            text = "Начать тест",
+//                            fontSize = 18.sp,
+//                            color = White,
+//                            fontFamily = FontFamily(Font(R.font.jura))
+//                        )
+//                    }
                 }
             }
         }

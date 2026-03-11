@@ -1,5 +1,6 @@
 package com.example.statmaster.adaptive
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -45,16 +47,12 @@ fun AdaptiveTestScreen(
     var sessionStats by remember { mutableStateOf<SessionStats?>(null) }
 
     val userAbility by repository.userAbility.collectAsState()
-
-    // Таймер для отслеживания времени ответа
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    // Загружаем первый вопрос
     LaunchedEffect(Unit) {
         val userId = authManager.supabase.auth.currentUserOrNull()?.id
         if (userId != null) {
             repository.initializeUserAbility(userId)
-            // Используем coroutineScope.launch внутри LaunchedEffect
             launch {
                 loadNextQuestion(repository, topicId) { question ->
                     currentQuestion = question
@@ -82,7 +80,10 @@ fun AdaptiveTestScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Text("←")
+                        Image(
+                            painter = painterResource(id = R.drawable.arrow_icon_back),
+                            contentDescription = "Back"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -138,7 +139,6 @@ fun AdaptiveTestScreen(
                                 val isCorrect = currentQuestion!!.question.answers
                                     .firstOrNull { it.id == selectedAnswerId }?.isCorrect == true
 
-                                // Обрабатываем ответ
                                 repository.processAnswer(
                                     questionId = currentQuestion!!.question.id,
                                     difficulty = currentQuestion!!.difficulty,
@@ -146,7 +146,6 @@ fun AdaptiveTestScreen(
                                     responseTime = responseTime
                                 )
 
-                                // Получаем следующий вопрос
                                 val nextQuestion = repository.getNextQuestion(topicId)
 
                                 if (nextQuestion != null && repository.getSessionStats().totalQuestions < 10) {
@@ -154,7 +153,6 @@ fun AdaptiveTestScreen(
                                     selectedAnswerId = null
                                     startTime = System.currentTimeMillis()
                                 } else {
-                                    // Тест завершен
                                     recommendations = repository.getRecommendations()
                                     sessionStats = repository.getSessionStats()
                                     testCompleted = true
@@ -185,7 +183,6 @@ fun QuestionScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Индикатор прогресса
         LinearProgressIndicator(
             progress = questionNumber.toFloat() / totalQuestions.toFloat(),
             modifier = Modifier
@@ -200,12 +197,10 @@ fun QuestionScreen(
             color = Color.Gray
         )
 
-        // Индикатор сложности
         DifficultyIndicator(difficulty = question.difficulty)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Вопрос
         QuestionCard(
             question = question.question,
             selectedAnswerId = selectedAnswerId,
@@ -216,7 +211,6 @@ fun QuestionScreen(
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Кнопка отправки
         Button(
             onClick = onAnswerSubmit,
             modifier = Modifier
@@ -226,7 +220,7 @@ fun QuestionScreen(
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (selectedAnswerId != null) Green else DarkBlue
             ),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(60.dp)
         ) {
             Text(
                 text = "Ответить",
