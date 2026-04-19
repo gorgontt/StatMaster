@@ -16,14 +16,10 @@ class AdaptiveTestingRepository(
     private val context: Context
 ) {
 
-    // Текущее состояние пользователя
     private val _userAbility = MutableStateFlow<UserAbility?>(null)
     val userAbility: StateFlow<UserAbility?> = _userAbility.asStateFlow()
-
-    // История ответов в текущей сессии
     private val sessionResponses = mutableListOf<UserResponse>()
 
-    // Константы для IRT модели
     companion object {
         const val INITIAL_ABILITY = 0.0f
         const val INITIAL_VARIANCE = 1.0f
@@ -31,7 +27,6 @@ class AdaptiveTestingRepository(
         const val MIN_QUESTIONS_FOR_EVALUATION = 5
     }
 
-    // Загружаем или создаем профиль способностей пользователя
     suspend fun initializeUserAbility(userId: String) {
         try {
             // Пытаемся получить существующий профиль
@@ -66,15 +61,11 @@ class AdaptiveTestingRepository(
         }
     }
 
-    // Получаем следующий вопрос на основе текущего уровня
     suspend fun getNextQuestion(topicId: Int? = null): AdaptiveQuestion? {
         val ability = _userAbility.value ?: return null
 
         return try {
-            // Определяем целевой уровень сложности
             val targetDifficulty = selectDifficultyBasedOnAbility(ability.abilityLevel)
-
-            // Используем raw запрос
             val query = if (topicId != null) {
                 authManager.supabase.postgrest
                     .from("question")
@@ -90,13 +81,10 @@ class AdaptiveTestingRepository(
             }
 
             val allQuestions = query.decodeList<QuestionWithAnswers>()
-
-            // Фильтруем по сложности в коде
             val questionsByDifficulty = allQuestions.filter { question ->
                 question.difficulty == targetDifficulty
             }
 
-            // Выбираем вопрос, который еще не задавали в этой сессии
             val askedQuestionIds = sessionResponses.map { it.questionId }.toSet()
             val availableQuestions = questionsByDifficulty.filter { it.id !in askedQuestionIds }
 
@@ -107,7 +95,6 @@ class AdaptiveTestingRepository(
                     difficulty = targetDifficulty
                 )
             } else {
-                // Если нет вопросов нужной сложности, берем любой из неотвеченных
                 val anyAvailable = allQuestions.filter { it.id !in askedQuestionIds }
                 anyAvailable.randomOrNull()?.let {
                     AdaptiveQuestion(
@@ -131,19 +118,13 @@ class AdaptiveTestingRepository(
     ) {
         val ability = _userAbility.value ?: return
         val userId = ability.userId
-
-        // Сохраняем уровень до ответа
         val abilityBefore = ability.abilityLevel
-
-        // Обновляем уровень по IRT модели
         val updatedAbility = updateAbilityLevel(
             currentAbility = ability.abilityLevel,
             currentVariance = ability.abilityVariance,
             difficulty = difficulty,
             isCorrect = isCorrect
         )
-
-        // Создаем запись об ответе
         val response = UserResponse(
             userId = userId,
             questionId = questionId,
@@ -153,26 +134,17 @@ class AdaptiveTestingRepository(
             abilityBefore = abilityBefore,
             abilityAfter = updatedAbility.first
         )
-
         sessionResponses.add(response)
-
-        // Обновляем состояние
         val newAbility = ability.copy(
             abilityLevel = updatedAbility.first,
             abilityVariance = updatedAbility.second,
             questionsAnswered = ability.questionsAnswered + 1
         )
-
         _userAbility.value = newAbility
-
-        // Сохраняем в базу данных
         try {
-            // Сохраняем ответ
             authManager.supabase.postgrest
                 .from("user_responses")
                 .insert(response)
-
-            // Обновляем профиль способностей
             authManager.supabase.postgrest
                 .from("user_ability")
                 .update(
@@ -198,7 +170,6 @@ class AdaptiveTestingRepository(
         difficulty: String,
         isCorrect: Boolean
     ): Pair<Float, Float> {
-        // Преобразуем сложность в числовое значение
         val difficultyValue = when (difficulty) {
             "easy" -> -1.0f
             "medium" -> 0.0f
@@ -206,17 +177,12 @@ class AdaptiveTestingRepository(
             else -> 0.0f
         }
 
-        // Дискриминативность
         val discrimination = 1.0f
 
-        // Вычисляем вероятность правильного ответа
         val probability = 1.0f / (1.0f + exp(-discrimination * (currentAbility - difficultyValue)))
-
-        // Обновляем уровень способностей
         val gradient = if (isCorrect) 1 - probability else -probability
         val newAbility = currentAbility + LEARNING_RATE * gradient * discrimination
 
-        // Уменьшаем дисперсию
         val newVariance = currentVariance * 0.9f
 
         return Pair(newAbility, newVariance)
