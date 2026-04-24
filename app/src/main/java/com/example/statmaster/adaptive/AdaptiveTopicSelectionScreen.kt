@@ -1,5 +1,6 @@
 package com.example.statmaster.adaptive
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -23,35 +25,43 @@ import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.White
-import kotlinx.coroutines.launch
-import android.util.Log
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import com.example.statmaster.Test
-import com.example.statmaster.ui.theme.Black
-import com.example.statmaster.ui.theme.LightBlue
-import com.example.statmaster.ui.theme.RedColor
-import com.example.statmaster.ui.theme.Transparent
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.rpc
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
+
+// ============================================================
+// DATA КЛАССЫ
+// ============================================================
+
+@Serializable
+data class Topic(
+    val id: Int,
+    val title: String,
+    val questionCount: Int
+)
+
+@Serializable
+data class TestSimple(
+    val id: Int,
+    val title: String
+)
+
+// ============================================================
+// ЭКРАН ВЫБОРА ТЕМЫ
+// ============================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdaptiveTopicSelectionScreen(navController: NavController) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
-    val repository = remember { AdaptiveTestingRepository(authManager, context) }
 
     var topics by remember { mutableStateOf<List<Topic>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedTopicId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
-        // Загружаем доступные темы (главы)
         topics = getAvailableTopics(authManager)
         isLoading = false
     }
@@ -59,55 +69,17 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Выберите тему", style = TextStyle(
-                    color = DarkBlue,
-                    fontSize = 30.sp,
-                    fontFamily = FontFamily(Font(R.font.jura_semibold))
-                )) },
+                title = { Text("Выберите тему") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Image(
-                            painter = painterResource(id = R.drawable.arrow_icon_back),
-                            contentDescription = "Back"
-                        )
+                        Text("←", fontSize = 24.sp)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = BackgroundColor
                 )
             )
-        },
-
-        bottomBar = {
-            BottomAppBar(
-                containerColor = BackgroundColor,
-                contentColor = BackgroundColor,
-            ){
-                Button(
-                    onClick = {if (selectedTopicId != null) {
-                        navController.navigate("adaptive_test/${selectedTopicId}")
-                    }},
-                    //contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BackgroundColor),
-                    colors = ButtonDefaults.buttonColors(containerColor = if (selectedTopicId != null) DarkBlue else LightBlue                     ),
-                ) {
-
-
-                    Text(
-                        modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
-                        text = "Начать тест",
-                        style = TextStyle(
-                            color = White, fontSize = 20.sp, fontFamily = FontFamily(
-                                Font(R.font.jura)
-                            )
-                        )
-                    )
-                }
-            }
         }
-
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -115,109 +87,81 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
                 .background(BackgroundColor)
                 .padding(paddingValues)
         ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp)
-                ) {
-                    Text(
-                        text = "Выберите тему для адаптивного тестирования:",
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily(Font(R.font.jura)),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    LazyColumn(
-                        //verticalArrangement = Arrangement.spacedBy(12.dp)
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+                topics.isEmpty() -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        items(topics) { topic ->
-                            TopicCard(
-                                topic = topic,
-                                isSelected = selectedTopicId == topic.id,
-                                onSelect = { selectedTopicId = topic.id }
+                        Text(
+                            text = "Нет доступных тем",
+                            fontSize = 18.sp,
+                            fontFamily = FontFamily(Font(R.font.jura))
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { navController.popBackStack() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                        ) {
+                            Text("Назад")
+                        }
+                    }
+                }
+                else -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp)
+                    ) {
+                        Text(
+                            text = "Выберите тему для адаптивного тестирования:",
+                            fontSize = 18.sp,
+                            fontFamily = FontFamily(Font(R.font.jura)),
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(topics) { topic ->
+                                TopicCard(
+                                    topic = topic,
+                                    isSelected = selectedTopicId == topic.id,
+                                    onSelect = { selectedTopicId = topic.id }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Button(
+                            onClick = {
+                                if (selectedTopicId != null) {
+                                    navController.navigate("adaptive_test/${selectedTopicId}")
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            enabled = selectedTopicId != null,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (selectedTopicId != null) Blue else DarkBlue
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Начать тест",
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily(Font(R.font.jura))
                             )
                         }
                     }
-
-                   //Spacer(modifier = Modifier.weight(1f))
-
-//                    Card(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .align(alignment = Alignment.CenterHorizontally)
-//                            .background(Transparent)
-//                            .shadow(
-//                                elevation = 4.dp,
-//                                ambientColor = Color.Black,
-//                                spotColor = Color.Black,
-//                                shape = RoundedCornerShape(30.dp)
-//                            )
-//
-//                            .clickable {
-//                                //navController.navigate("players_list/компания")
-//                            },
-//                        shape = RoundedCornerShape(30.dp),
-//                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-//                    ){
-//
-//                        Button(
-//                            onClick = {if (selectedTopicId != null) {
-//                                navController.navigate("adaptive_test/${selectedTopicId}")
-//                            }},
-//                            //contentAlignment = Alignment.Center,
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .background(BackgroundColor),
-//                            colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
-//                        ) {
-//
-//
-//                            Text(
-//                                modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
-//                                text = "Создать аккаунт",
-//                                style = TextStyle(
-//                                    color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-//                                        Font(R.font.jura)
-//                                    )
-//                                )
-//                            )
-//                        }
-//
-//
-//                    }
-
-
-
-
-
-//                    Button(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .background(BackgroundColor),
-//                        colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
-//                        shape = RoundedCornerShape(60.dp),
-//                        enabled = selectedTopicId != null,
-//                        //colors = ButtonDefaults.buttonColors(
-//                        //    containerColor = if (selectedTopicId != null) White else DarkBlue
-//                        //),
-//                        onClick = {
-//                            if (selectedTopicId != null) {
-//                                navController.navigate("adaptive_test/${selectedTopicId}")
-//                            }
-//                        },
-//
-//
-//                    ) {
-//                        Text(
-//                            text = "Начать тест",
-//                            fontSize = 18.sp,
-//                            color = White,
-//                            fontFamily = FontFamily(Font(R.font.jura))
-//                        )
-//                    }
                 }
             }
         }
@@ -233,33 +177,21 @@ fun TopicCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .background(BackgroundColor)
-            .padding(top = 10.dp, bottom = 5.dp)
-            .shadow(
-                elevation = 4.dp,
-                ambientColor = Color.Black,
-                spotColor = Color.Black,
-                shape = RoundedCornerShape(60.dp)
-            )
-            .clickable { onSelect() },
+            .clickable { onSelect() }
+            .shadow(4.dp, RoundedCornerShape(12.dp)),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) LightBlue else White
+            containerColor = if (isSelected) Blue.copy(alpha = 0.2f) else White
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-            .padding(start = 10.dp, end = 10.dp),
-            horizontalArrangement = Arrangement.Center,
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(top = 15.dp, bottom = 15.dp, start = 10.dp, end = 10.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column {
                 Text(
                     text = topic.title,
                     fontSize = 18.sp,
@@ -272,46 +204,44 @@ fun TopicCard(
                 )
             }
 
-
+            if (isSelected) {
+                Text(
+                    text = "✓",
+                    fontSize = 24.sp,
+                    color = Blue
+                )
+            }
         }
     }
 }
 
-data class Topic(
-    val id: Int,
-    val title: String,
-    val questionCount: Int
-)
+// ============================================================
+// ФУНКЦИЯ ПОЛУЧЕНИЯ ТЕМ
+// ============================================================
 
 suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
     return try {
-        // Получаем все тесты с количеством вопросов
-        val result = authManager.supabase.postgrest
-            .rpc("get_topics_with_question_count")
-            .decodeList<Topic>()
+        // Получаем все тесты
+        val tests = authManager.supabase.postgrest
+            .from("test")
+            .select(Columns.raw("id, title"))
+            .decodeList<TestSimple>()
 
-        if (result.isNotEmpty()) {
-            result
-        } else {
-            // Если RPC не работает, получаем тесты и считаем вопросы отдельно
-            val tests = authManager.supabase.postgrest
-                .from("test")
-                .select(Columns.raw("id, title"))
-                .decodeList<Test>()
+        // Для каждого теста считаем количество вопросов
+        val topics = mutableListOf<Topic>()
+        for (test in tests) {
+            val count = authManager.supabase.postgrest
+                .from("question")
+                .select(Columns.raw("id")) {
+                    filter { eq("test_id", test.id) }
+                }
+                .decodeList<Map<String, Int>>()
+                .size
 
-            tests.map { test ->
-                val count = authManager.supabase.postgrest
-                    .from("question")
-                    .select(Columns.raw("count")) {
-                        filter {
-                            eq("test_id", test.id)
-                        }
-                    }
-                    .decodeSingle<Int>()
-
-                Topic(test.id, test.title, count)
-            }
+            topics.add(Topic(test.id, test.title, count))
         }
+
+        topics
     } catch (e: Exception) {
         Log.e("AdaptiveTesting", "Error loading topics", e)
 
@@ -326,15 +256,3 @@ suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
         )
     }
 }
-
-// Добавьте RPC функцию в Supabase
-// CREATE OR REPLACE FUNCTION get_topics_with_question_count()
-// RETURNS TABLE(id INT, title TEXT, questionCount BIGINT) AS $$
-// BEGIN
-//     RETURN QUERY
-//     SELECT t.id, t.title, COUNT(q.id)::BIGINT as questionCount
-//     FROM test t
-//     LEFT JOIN question q ON q.test_id = t.id
-//     GROUP BY t.id, t.title;
-// END;
-// $$ LANGUAGE plpgsql;
