@@ -70,16 +70,7 @@ class AuthManager(
                 isLenient = true
             })
         }
-            //httpConfig { this.install(WebSockets) }
-        httpConfig {
-            // Увеличиваем таймаут до 30 секунд
-            install(io.ktor.client.plugins.HttpTimeout) {
-                requestTimeoutMillis = 70000
-                connectTimeoutMillis = 70000
-                socketTimeoutMillis = 70000
-            }
-        }
-
+        httpConfig { this.install(WebSockets) }
     }
 
     fun SignUpWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {

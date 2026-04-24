@@ -18,7 +18,7 @@ class AdaptiveTestingRepository(
 
     private val _userAbility = MutableStateFlow<UserAbility?>(null)
     val userAbility: StateFlow<UserAbility?> = _userAbility.asStateFlow()
-    val sessionResponses = mutableListOf<UserResponse>()
+    private val sessionResponses = mutableListOf<UserResponse>()
 
     companion object {
         const val INITIAL_ABILITY = 0.0f
@@ -27,83 +27,45 @@ class AdaptiveTestingRepository(
         const val MIN_QUESTIONS_FOR_EVALUATION = 5
     }
 
-//    suspend fun initializeUserAbility(userId: String) {
-//        try {
-//            // Пытаемся получить существующий профиль
-//            val existingAbility = authManager.supabase.postgrest
-//                .from("user_ability")
-//                .select(Columns.raw("""*""")) {
-//                    filter {
-//                        eq("user_id", userId)
-//                    }
-//                }
-//                .decodeSingleOrNull<UserAbility>()
-//
-//            if (existingAbility != null) {
-//                _userAbility.value = existingAbility
-//            } else {
-//                // Создаем новый профиль
-//                val newAbility = UserAbility(
-//                    userId = userId,
-//                    abilityLevel = INITIAL_ABILITY,
-//                    abilityVariance = INITIAL_VARIANCE,
-//                    questionsAnswered = 0
-//                )
-//
-//                authManager.supabase.postgrest
-//                    .from("user_ability")
-//                    .insert(newAbility)
-//
-//                _userAbility.value = newAbility
-//            }
-//        } catch (e: Exception) {
-//            Log.e("AdaptiveTesting", "Error initializing user ability", e)
-//        }
-//    }
-
-
     suspend fun initializeUserAbility(userId: String) {
-        // Временно создаём локальный профиль без запроса к БД
-        val localAbility = UserAbility(
-            userId = userId,
-            abilityLevel = INITIAL_ABILITY,
-            abilityVariance = INITIAL_VARIANCE,
-            questionsAnswered = 0
-        )
-        _userAbility.value = localAbility
-        Log.d("AdaptiveTest", "Используется локальный профиль")
-
-        // Оригинальный код закомментирован до исправления сериализации
-        /*
         try {
+            // Пытаемся получить существующий профиль
             val existingAbility = authManager.supabase.postgrest
                 .from("user_ability")
                 .select(Columns.raw("""*""")) {
-                    filter { eq("user_id", userId) }
+                    filter {
+                        eq("user_id", userId)
+                    }
                 }
                 .decodeSingleOrNull<UserAbility>()
-            // ... остальной код
+
+            if (existingAbility != null) {
+                _userAbility.value = existingAbility
+            } else {
+                // Создаем новый профиль
+                val newAbility = UserAbility(
+                    userId = userId,
+                    abilityLevel = INITIAL_ABILITY,
+                    abilityVariance = INITIAL_VARIANCE,
+                    questionsAnswered = 0
+                )
+
+                authManager.supabase.postgrest
+                    .from("user_ability")
+                    .insert(newAbility)
+
+                _userAbility.value = newAbility
+            }
         } catch (e: Exception) {
             Log.e("AdaptiveTesting", "Error initializing user ability", e)
         }
-        */
     }
 
     suspend fun getNextQuestion(topicId: Int? = null): AdaptiveQuestion? {
-        val ability = _userAbility.value
-        Log.d("AdaptiveTest", "=== getNextQuestion START ===")
-        Log.d("AdaptiveTest", "ability = ${ability?.abilityLevel}")
-        Log.d("AdaptiveTest", "topicId = $topicId")
-
-        if (ability == null) {
-            Log.e("AdaptiveTest", "ability is NULL!")
-            return null
-        }
+        val ability = _userAbility.value ?: return null
 
         return try {
             val targetDifficulty = selectDifficultyBasedOnAbility(ability.abilityLevel)
-            Log.d("AdaptiveTest", "targetDifficulty = $targetDifficulty")
-
             val query = if (topicId != null) {
                 authManager.supabase.postgrest
                     .from("question")
@@ -119,33 +81,20 @@ class AdaptiveTestingRepository(
             }
 
             val allQuestions = query.decodeList<QuestionWithAnswers>()
-            Log.d("AdaptiveTest", "allQuestions.size = ${allQuestions.size}")
-
-            if (allQuestions.isNotEmpty()) {
-                Log.d("AdaptiveTest", "Первый вопрос: ${allQuestions.first().questionText}")
-                Log.d("AdaptiveTest", "Его difficulty: ${allQuestions.first().difficulty}")
-            }
-
             val questionsByDifficulty = allQuestions.filter { question ->
                 question.difficulty == targetDifficulty
             }
-            Log.d("AdaptiveTest", "questionsByDifficulty.size = ${questionsByDifficulty.size}")
 
             val askedQuestionIds = sessionResponses.map { it.questionId }.toSet()
-            Log.d("AdaptiveTest", "askedQuestionIds.size = ${askedQuestionIds.size}")
-
             val availableQuestions = questionsByDifficulty.filter { it.id !in askedQuestionIds }
-            Log.d("AdaptiveTest", "availableQuestions.size = ${availableQuestions.size}")
 
             if (availableQuestions.isNotEmpty()) {
                 val selectedQuestion = availableQuestions.random()
-                Log.d("AdaptiveTest", "Выбран вопрос: ${selectedQuestion.id}")
                 AdaptiveQuestion(
                     question = selectedQuestion,
                     difficulty = targetDifficulty
                 )
             } else {
-                Log.d("AdaptiveTest", "Нет доступных вопросов нужной сложности, ищем любые")
                 val anyAvailable = allQuestions.filter { it.id !in askedQuestionIds }
                 anyAvailable.randomOrNull()?.let {
                     AdaptiveQuestion(
@@ -155,7 +104,7 @@ class AdaptiveTestingRepository(
                 }
             }
         } catch (e: Exception) {
-            Log.e("AdaptiveTest", "getNextQuestion error", e)
+            Log.e("AdaptiveTesting", "Error getting next question", e)
             null
         }
     }
@@ -176,8 +125,6 @@ class AdaptiveTestingRepository(
             difficulty = difficulty,
             isCorrect = isCorrect
         )
-
-        // Создаём ответ для локальной истории
         val response = UserResponse(
             userId = userId,
             questionId = questionId,
@@ -188,32 +135,31 @@ class AdaptiveTestingRepository(
             abilityAfter = updatedAbility.first
         )
         sessionResponses.add(response)
-
         val newAbility = ability.copy(
             abilityLevel = updatedAbility.first,
             abilityVariance = updatedAbility.second,
             questionsAnswered = ability.questionsAnswered + 1
         )
         _userAbility.value = newAbility
-
-        // Обновляем профиль способностей в БД
         try {
-            // Используем data-класс вместо Map
-            val abilityUpdate = UserAbility(
-                userId = userId,
-                abilityLevel = newAbility.abilityLevel,
-                abilityVariance = newAbility.abilityVariance,
-                questionsAnswered = newAbility.questionsAnswered
-            )
-
+            authManager.supabase.postgrest
+                .from("user_responses")
+                .insert(response)
             authManager.supabase.postgrest
                 .from("user_ability")
-                .update(abilityUpdate) {
-                    filter { eq("user_id", userId) }
+                .update(
+                    mapOf(
+                        "ability_level" to newAbility.abilityLevel,
+                        "ability_variance" to newAbility.abilityVariance,
+                        "questions_answered" to newAbility.questionsAnswered
+                    )
+                ) {
+                    filter {
+                        eq("user_id", userId)
+                    }
                 }
-            Log.d("AdaptiveTest", "Уровень пользователя обновлён в БД")
         } catch (e: Exception) {
-            Log.e("AdaptiveTesting", "Error updating user ability in DB", e)
+            Log.e("AdaptiveTesting", "Error saving response", e)
         }
     }
 
