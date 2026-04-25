@@ -1,5 +1,6 @@
 package com.example.statmaster.adaptive
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -25,7 +26,10 @@ import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
 import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,21 +49,72 @@ fun AdaptiveTestScreen(
     var testCompleted by remember { mutableStateOf(false) }
     var recommendations by remember { mutableStateOf<List<Recommendation>>(emptyList()) }
     var sessionStats by remember { mutableStateOf<SessionStats?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val userAbility by repository.userAbility.collectAsState()
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
+    // Функция загрузки следующего вопроса с повторными попытками
+    suspend fun loadNextQuestionWithRetry(maxRetries: Int = 3): AdaptiveQuestion? {
+        var retries = 0
+        while (retries < maxRetries) {
+            try {
+                val question = withTimeout(15000) { // 15 секунд таймаут
+                    repository.getNextQuestion(topicId)
+                }
+                if (question != null) return question
+                Log.d("AdaptiveTest", "Вопрос не получен, повторная попытка ${retries + 1}")
+            } catch (e: TimeoutCancellationException) {
+                Log.e("AdaptiveTest", "Таймаут при загрузке вопроса, попытка ${retries + 1}")
+                if (retries >= maxRetries - 1) throw e
+            } catch (e: Exception) {
+                Log.e("AdaptiveTest", "Ошибка при загрузке вопроса, попытка ${retries + 1}", e)
+                if (retries >= maxRetries - 1) throw e
+            }
+            retries++
+            if (retries < maxRetries) {
+                delay(1000) // Ждём 1 секунду перед повторной попыткой
+            }
+        }
+        return null
+    }
+
+    // Загрузка первого вопроса
     LaunchedEffect(Unit) {
         val userId = authManager.supabase.auth.currentUserOrNull()?.id
+        Log.d("AdaptiveTest", "=== НАЧАЛО ЗАГРУЗКИ ТЕСТА ===")
+        Log.d("AdaptiveTest", "User ID: $userId")
+        Log.d("AdaptiveTest", "Topic ID: $topicId")
+
         if (userId != null) {
-            repository.initializeUserAbility(userId)
-            launch {
-                loadNextQuestion(repository, topicId) { question ->
-                    currentQuestion = question
-                    isLoading = false
-                    startTime = System.currentTimeMillis()
+            try {
+                repository.initializeUserAbility(userId)
+                Log.d("AdaptiveTest", "IRT репозиторий инициализирован")
+
+                val question = withTimeout(20000) { // 20 секунд на первый вопрос
+                    loadNextQuestionWithRetry(3)
                 }
+
+                currentQuestion = question
+                if (question == null) {
+                    errorMessage = "Не удалось загрузить вопросы. Проверьте соединение."
+                }
+
+                isLoading = false
+                startTime = System.currentTimeMillis()
+            } catch (e: TimeoutCancellationException) {
+                Log.e("AdaptiveTest", "Таймаут загрузки первого вопроса")
+                errorMessage = "Сервер не отвечает. Попробуйте позже."
+                isLoading = false
+            } catch (e: Exception) {
+                Log.e("AdaptiveTest", "Ошибка при загрузке первого вопроса", e)
+                errorMessage = "Ошибка загрузки: ${e.message}"
+                isLoading = false
             }
+        } else {
+            Log.e("AdaptiveTest", "Пользователь не авторизован")
+            errorMessage = "Пользователь не авторизован"
+            isLoading = false
         }
     }
 
@@ -69,7 +124,7 @@ fun AdaptiveTestScreen(
                 title = {
                     Column {
                         Text(topicTitle)
-                        if (userAbility != null) {
+                        if (userAbility != null && !isLoading) {
                             Text(
                                 text = "Уровень: ${formatAbilityLevel(userAbility!!.abilityLevel)}",
                                 fontSize = 14.sp,
@@ -100,9 +155,40 @@ fun AdaptiveTestScreen(
         ) {
             when {
                 isLoading -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Загрузка вопросов...",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                errorMessage != null -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = errorMessage ?: "Неизвестная ошибка",
+                            fontSize = 16.sp,
+                            color = Color.Red,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { navController.popBackStack() },
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue)
+                        ) {
+                            Text("Назад")
+                        }
+                    }
                 }
                 testCompleted -> {
                     TestCompleteScreen(
@@ -114,10 +200,16 @@ fun AdaptiveTestScreen(
                                 repository.resetSession()
                                 testCompleted = false
                                 isLoading = true
-                                loadNextQuestion(repository, topicId) { question ->
-                                    currentQuestion = question
+                                errorMessage = null
+                                try {
+                                    currentQuestion = loadNextQuestionWithRetry(3)
                                     isLoading = false
                                     startTime = System.currentTimeMillis()
+                                    selectedAnswerId = null
+                                } catch (e: Exception) {
+                                    Log.e("AdaptiveTest", "Ошибка перезапуска", e)
+                                    errorMessage = "Не удалось перезапустить тест"
+                                    isLoading = false
                                 }
                             }
                         },
@@ -132,27 +224,51 @@ fun AdaptiveTestScreen(
                             selectedAnswerId = answerId
                         },
                         onAnswerSubmit = {
-                            val responseTime =
-                                ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                            val responseTime = ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                            Log.d("AdaptiveTest", "=== onAnswerSubmit START ===")
+                            Log.d("AdaptiveTest", "selectedAnswerId = $selectedAnswerId")
 
                             coroutineScope.launch {
-                                val isCorrect = currentQuestion!!.question.answers
-                                    .firstOrNull { it.id == selectedAnswerId }?.isCorrect == true
+                                try {
+                                    val isCorrect = currentQuestion!!.question.answers
+                                        .firstOrNull { it.id == selectedAnswerId }?.isCorrect == true
+                                    Log.d("AdaptiveTest", "isCorrect = $isCorrect")
 
-                                repository.processAnswer(
-                                    questionId = currentQuestion!!.question.id,
-                                    difficulty = currentQuestion!!.difficulty,
-                                    isCorrect = isCorrect,
-                                    responseTime = responseTime
-                                )
+                                    repository.processAnswer(
+                                        questionId = currentQuestion!!.question.id,
+                                        difficulty = currentQuestion!!.difficulty,
+                                        isCorrect = isCorrect,
+                                        responseTime = responseTime
+                                    )
+                                    Log.d("AdaptiveTest", "processAnswer завершён")
 
-                                val nextQuestion = repository.getNextQuestion(topicId)
+                                    val nextQuestion = withTimeout(15000) {
+                                        loadNextQuestionWithRetry(2)
+                                    }
+                                    Log.d("AdaptiveTest", "nextQuestion = ${nextQuestion?.question?.questionText}")
 
-                                if (nextQuestion != null && repository.getSessionStats().totalQuestions < 10) {
-                                    currentQuestion = nextQuestion
-                                    selectedAnswerId = null
-                                    startTime = System.currentTimeMillis()
-                                } else {
+                                    if (nextQuestion != null && repository.getSessionStats().totalQuestions < 10) {
+                                        currentQuestion = nextQuestion
+                                        selectedAnswerId = null
+                                        startTime = System.currentTimeMillis()
+                                        Log.d("AdaptiveTest", "Переход к следующему вопросу: ${nextQuestion.question.questionText}")
+                                    } else {
+                                        Log.d("AdaptiveTest", "Тест завершён. nextQuestion=$nextQuestion, totalQuestions=${repository.getSessionStats().totalQuestions}")
+                                        recommendations = repository.getRecommendations()
+                                        sessionStats = repository.getSessionStats()
+                                        testCompleted = true
+                                        currentQuestion = null
+                                    }
+                                } catch (e: TimeoutCancellationException) {
+                                    Log.e("AdaptiveTest", "Таймаут при загрузке следующего вопроса")
+                                    // Завершаем тест с текущими результатами
+                                    recommendations = repository.getRecommendations()
+                                    sessionStats = repository.getSessionStats()
+                                    testCompleted = true
+                                    currentQuestion = null
+                                } catch (e: Exception) {
+                                    Log.e("AdaptiveTest", "Ошибка при загрузке следующего вопроса", e)
+                                    // Завершаем тест с текущими результатами
                                     recommendations = repository.getRecommendations()
                                     sessionStats = repository.getSessionStats()
                                     testCompleted = true
@@ -167,6 +283,30 @@ fun AdaptiveTestScreen(
             }
         }
     }
+}
+
+// Остальные функции (QuestionScreen, DifficultyIndicator, TestCompleteScreen, ResultRow, formatAbilityLevel)
+// остаются без изменений
+
+
+suspend fun getNextQuestionWithRetry(
+    repository: AdaptiveTestingRepository,
+    topicId: Int?,
+    maxRetries: Int = 3
+): AdaptiveQuestion? {
+    var retries = 0
+    while (retries < maxRetries) {
+        try {
+            val question = repository.getNextQuestion(topicId)
+            if (question != null) return question
+        } catch (e: Exception) {
+            Log.e("AdaptiveTest", "Попытка ${retries + 1} не удалась", e)
+            if (retries >= maxRetries - 1) throw e
+        }
+        retries++
+        delay(1000) // Ждём 1 секунду перед повторной попыткой
+    }
+    return null
 }
 
 @Composable

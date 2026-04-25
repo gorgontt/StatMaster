@@ -35,6 +35,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.UUID
+import io.ktor.client.plugins.HttpTimeout
 
 class MainActivity : ComponentActivity() {
     @OptIn(SupabaseInternal::class)
@@ -71,6 +72,13 @@ class AuthManager(
             })
         }
         httpConfig { this.install(WebSockets) }
+        httpConfig {
+            install(io.ktor.client.plugins.HttpTimeout) {
+                requestTimeoutMillis = 30000
+                connectTimeoutMillis = 30000
+                socketTimeoutMillis = 30000
+            }
+        }
     }
 
     fun SignUpWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
