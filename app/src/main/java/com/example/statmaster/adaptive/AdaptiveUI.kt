@@ -40,8 +40,10 @@ fun AdaptiveTestScreen(
 ) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
-    val repository = remember { AdaptiveTestingRepository(authManager, context) }
     val coroutineScope = rememberCoroutineScope()
+
+    val hybridRepository = remember { HybridRecommendationRepository(authManager, context) }
+    val repository = hybridRepository.irtRepository
 
     var currentQuestion by remember { mutableStateOf<AdaptiveQuestion?>(null) }
     var selectedAnswerId by remember { mutableStateOf<Int?>(null) }
@@ -59,7 +61,7 @@ fun AdaptiveTestScreen(
         var retries = 0
         while (retries < maxRetries) {
             try {
-                val question = withTimeout(15000) { // 15 секунд таймаут
+                val question = withTimeout(15000) {
                     repository.getNextQuestion(topicId)
                 }
                 if (question != null) return question
@@ -73,7 +75,7 @@ fun AdaptiveTestScreen(
             }
             retries++
             if (retries < maxRetries) {
-                delay(1000) // Ждём 1 секунду перед повторной попыткой
+                delay(1000)
             }
         }
         return null
@@ -91,7 +93,11 @@ fun AdaptiveTestScreen(
                 repository.initializeUserAbility(userId)
                 Log.d("AdaptiveTest", "IRT репозиторий инициализирован")
 
-                val question = withTimeout(20000) { // 20 секунд на первый вопрос
+                // Обновляем вектор пользователя для коллаборативной фильтрации
+                hybridRepository.updateUserVector(userId)
+                Log.d("AdaptiveTest", "Вектор пользователя обновлён")
+
+                val question = withTimeout(20000) {
                     loadNextQuestionWithRetry(3)
                 }
 
@@ -242,8 +248,20 @@ fun AdaptiveTestScreen(
                                     )
                                     Log.d("AdaptiveTest", "processAnswer завершён")
 
+                                    // Обновляем вектор пользователя после ответа
+                                    val userId = authManager.supabase.auth.currentUserOrNull()?.id
+                                    if (userId != null) {
+                                        hybridRepository.updateUserVector(userId)
+                                    }
+
+                                    val askedQuestionIds = repository.sessionResponses.map { it.questionId }.toSet()
+
                                     val nextQuestion = withTimeout(15000) {
-                                        loadNextQuestionWithRetry(2)
+                                        hybridRepository.getHybridRecommendation(
+                                            userId = authManager.supabase.auth.currentUserOrNull()?.id ?: "",
+                                            topicId = topicId,
+                                            excludeQuestionIds = askedQuestionIds
+                                        )
                                     }
                                     Log.d("AdaptiveTest", "nextQuestion = ${nextQuestion?.question?.questionText}")
 
@@ -254,21 +272,21 @@ fun AdaptiveTestScreen(
                                         Log.d("AdaptiveTest", "Переход к следующему вопросу: ${nextQuestion.question.questionText}")
                                     } else {
                                         Log.d("AdaptiveTest", "Тест завершён. nextQuestion=$nextQuestion, totalQuestions=${repository.getSessionStats().totalQuestions}")
-                                        recommendations = repository.getRecommendations()
+                                        recommendations = hybridRepository.getPersonalizedRecommendations(
+                                            authManager.supabase.auth.currentUserOrNull()?.id ?: ""
+                                        )
                                         sessionStats = repository.getSessionStats()
                                         testCompleted = true
                                         currentQuestion = null
                                     }
                                 } catch (e: TimeoutCancellationException) {
                                     Log.e("AdaptiveTest", "Таймаут при загрузке следующего вопроса")
-                                    // Завершаем тест с текущими результатами
                                     recommendations = repository.getRecommendations()
                                     sessionStats = repository.getSessionStats()
                                     testCompleted = true
                                     currentQuestion = null
                                 } catch (e: Exception) {
                                     Log.e("AdaptiveTest", "Ошибка при загрузке следующего вопроса", e)
-                                    // Завершаем тест с текущими результатами
                                     recommendations = repository.getRecommendations()
                                     sessionStats = repository.getSessionStats()
                                     testCompleted = true
@@ -283,30 +301,6 @@ fun AdaptiveTestScreen(
             }
         }
     }
-}
-
-// Остальные функции (QuestionScreen, DifficultyIndicator, TestCompleteScreen, ResultRow, formatAbilityLevel)
-// остаются без изменений
-
-
-suspend fun getNextQuestionWithRetry(
-    repository: AdaptiveTestingRepository,
-    topicId: Int?,
-    maxRetries: Int = 3
-): AdaptiveQuestion? {
-    var retries = 0
-    while (retries < maxRetries) {
-        try {
-            val question = repository.getNextQuestion(topicId)
-            if (question != null) return question
-        } catch (e: Exception) {
-            Log.e("AdaptiveTest", "Попытка ${retries + 1} не удалась", e)
-            if (retries >= maxRetries - 1) throw e
-        }
-        retries++
-        delay(1000) // Ждём 1 секунду перед повторной попыткой
-    }
-    return null
 }
 
 @Composable
@@ -527,16 +521,6 @@ fun ResultRow(label: String, value: String) {
         Text(label, fontSize = 16.sp)
         Text(value, fontSize = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
     }
-}
-
-// Вспомогательные функции
-private suspend fun loadNextQuestion(
-    repository: AdaptiveTestingRepository,
-    topicId: Int?,
-    onLoaded: (AdaptiveQuestion?) -> Unit
-) {
-    val question = repository.getNextQuestion(topicId)
-    onLoaded(question)
 }
 
 private fun formatAbilityLevel(ability: Float): String {
