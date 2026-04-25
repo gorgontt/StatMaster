@@ -46,7 +46,8 @@ data class QuestionWithAnswers(
     @SerialName("test_id") val testId: Int,
     @SerialName("question_text") val questionText: String,
     @SerialName("order_number") val orderNumber: Int,
-    val difficulty: String? = "medium",  // Добавьте это поле
+    val difficulty: String? = "medium",
+    @SerialName("difficulty_value") val difficultyValue: Double? = 0.0,
     val answers: List<Answer> = emptyList()
 )
 

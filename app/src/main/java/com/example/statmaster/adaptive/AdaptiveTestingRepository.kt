@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withTimeout
+import kotlin.math.abs
 import kotlin.math.exp
 
 class AdaptiveTestingRepository(
@@ -27,7 +28,7 @@ class AdaptiveTestingRepository(
         const val INITIAL_VARIANCE = 1.0f
         const val LEARNING_RATE = 0.3f
         const val MIN_QUESTIONS_FOR_EVALUATION = 5
-        private const val REQUEST_TIMEOUT_MS = 15000L  // 15 секунд
+        private const val REQUEST_TIMEOUT_MS = 15000L
     }
 
     // Инициализация профиля пользователя (локальная, без БД)
@@ -42,7 +43,11 @@ class AdaptiveTestingRepository(
         Log.d("AdaptiveTest", "Локальный профиль создан для пользователя: $userId")
     }
 
-    // Получение следующего вопроса с таймаутом и повторными попытками
+    /**
+     * Получение следующего вопроса с непрерывным подбором сложности
+     * Вопрос выбирается так, чтобы его сложность (difficulty_value) была
+     * максимально близка к текущему уровню пользователя
+     */
     suspend fun getNextQuestion(topicId: Int? = null, retryCount: Int = 0): AdaptiveQuestion? {
         val ability = _userAbility.value
         if (ability == null) {
@@ -50,8 +55,7 @@ class AdaptiveTestingRepository(
             return null
         }
 
-        val targetDifficulty = selectDifficultyBasedOnAbility(ability.abilityLevel)
-        Log.d("AdaptiveTest", "getNextQuestion: ability=${ability.abilityLevel}, targetDifficulty=$targetDifficulty, попытка=${retryCount + 1}")
+        Log.d("AdaptiveTest", "getNextQuestion: ability=${ability.abilityLevel}, попытка=${retryCount + 1}")
 
         return try {
             withTimeout(REQUEST_TIMEOUT_MS) {
@@ -70,31 +74,33 @@ class AdaptiveTestingRepository(
                 val allQuestions = query.decodeList<QuestionWithAnswers>()
                 Log.d("AdaptiveTest", "Загружено вопросов: ${allQuestions.size}")
 
-                // Фильтруем вопросы по сложности и наличию ответов
-                val availableQuestions = allQuestions.filter { question ->
-                    question.difficulty == targetDifficulty && question.answers.isNotEmpty()
-                }
-                Log.d("AdaptiveTest", "Доступно вопросов сложности $targetDifficulty: ${availableQuestions.size}")
+                // Фильтруем вопросы, у которых есть ответы
+                val questionsWithAnswers = allQuestions.filter { it.answers.isNotEmpty() }
 
                 val askedQuestionIds = sessionResponses.map { it.questionId }.toSet()
-                val notAskedQuestions = availableQuestions.filter { it.id !in askedQuestionIds }
-                Log.d("AdaptiveTest", "Неотвеченных вопросов: ${notAskedQuestions.size}")
+                val notAskedQuestions = questionsWithAnswers.filter { it.id !in askedQuestionIds }
 
-                // Выбираем случайный вопрос из неотвеченных, если есть, иначе из всех доступных
-                val selectedQuestion = notAskedQuestions.randomOrNull() ?: availableQuestions.randomOrNull()
+                // Если все вопросы уже отвечены, берём любые
+                val candidateQuestions = if (notAskedQuestions.isNotEmpty()) notAskedQuestions else questionsWithAnswers
+
+                // НЕПРЕРЫВНЫЙ ВЫБОР: ищем вопрос с difficulty_value, наиболее близким к текущему уровню
+                val selectedQuestion = candidateQuestions.minByOrNull { question ->
+                    val questionDifficulty = question.difficultyValue ?: 0.0
+                    abs(questionDifficulty - ability.abilityLevel)
+                }
 
                 selectedQuestion?.let {
-                    Log.d("AdaptiveTest", "Выбран вопрос: id=${it.id}, text=${it.questionText.take(50)}")
-                    AdaptiveQuestion(question = it, difficulty = targetDifficulty)
+                    val difficultyCategory = categorizeDifficulty(it.difficultyValue ?: 0.0)
+                    Log.d("AdaptiveTest", "Выбран вопрос: id=${it.id}, text=${it.questionText.take(50)}, difficulty_value=${it.difficultyValue}, категория=$difficultyCategory")
+                    AdaptiveQuestion(question = it, difficulty = difficultyCategory)
                 } ?: run {
-                    Log.e("AdaptiveTest", "Нет доступных вопросов для сложности $targetDifficulty")
+                    Log.e("AdaptiveTest", "Нет доступных вопросов")
                     null
                 }
             }
         } catch (e: TimeoutCancellationException) {
             Log.e("AdaptiveTest", "Timeout при загрузке вопросов, попытка ${retryCount + 1}")
             if (retryCount < 2) {
-                // Повторяем попытку через 1 секунду
                 kotlinx.coroutines.delay(1000)
                 getNextQuestion(topicId, retryCount + 1)
             } else {
@@ -109,6 +115,17 @@ class AdaptiveTestingRepository(
             } else {
                 null
             }
+        }
+    }
+
+    /**
+     * Преобразование числовой сложности в категорию для отображения
+     */
+    private fun categorizeDifficulty(difficultyValue: Double): String {
+        return when {
+            difficultyValue <= -0.7 -> "easy"
+            difficultyValue >= 0.7 -> "hard"
+            else -> "medium"
         }
     }
 
@@ -127,10 +144,13 @@ class AdaptiveTestingRepository(
 
         val userId = ability.userId
         val abilityBefore = ability.abilityLevel
-        val updatedAbility = updateAbilityLevel(
+
+        // Для обновления уровня используем числовое значение сложности
+        val difficultyValue = getDifficultyValueFromCategory(difficulty)
+        val updatedAbility = updateAbilityLevelWithValue(
             currentAbility = ability.abilityLevel,
             currentVariance = ability.abilityVariance,
-            difficulty = difficulty,
+            difficultyValue = difficultyValue,
             isCorrect = isCorrect
         )
 
@@ -156,43 +176,18 @@ class AdaptiveTestingRepository(
         _userAbility.value = newAbility
 
         // Сохранение в БД временно отключено для стабильности
-        // try {
-        //     authManager.supabase.postgrest
-        //         .from("user_responses")
-        //         .insert(response)
-        //
-        //     authManager.supabase.postgrest
-        //         .from("user_ability")
-        //         .update(
-        //             mapOf(
-        //                 "ability_level" to newAbility.abilityLevel,
-        //                 "ability_variance" to newAbility.abilityVariance,
-        //                 "questions_answered" to newAbility.questionsAnswered
-        //             )
-        //         ) {
-        //             filter { eq("user_id", userId) }
-        //         }
-        // } catch (e: Exception) {
-        //     Log.e("AdaptiveTesting", "Error saving response to DB", e)
-        // }
-
         Log.d("AdaptiveTest", "processAnswer завершён, новый уровень=${newAbility.abilityLevel}, отвечено вопросов=${sessionResponses.size}")
     }
 
-    // Обновление уровня способностей по IRT модели
-    private fun updateAbilityLevel(
+    /**
+     * Обновление уровня способностей по IRT модели с числовым значением сложности
+     */
+    private fun updateAbilityLevelWithValue(
         currentAbility: Float,
         currentVariance: Float,
-        difficulty: String,
+        difficultyValue: Float,
         isCorrect: Boolean
     ): Pair<Float, Float> {
-        val difficultyValue = when (difficulty) {
-            "easy" -> -1.0f
-            "medium" -> 0.0f
-            "hard" -> 1.0f
-            else -> 0.0f
-        }
-
         val discrimination = 1.0f
 
         // Вероятность правильного ответа по логистической функции
@@ -208,12 +203,15 @@ class AdaptiveTestingRepository(
         return Pair(newAbility, newVariance)
     }
 
-    // Выбор сложности на основе текущего уровня
-    private fun selectDifficultyBasedOnAbility(ability: Float): String {
-        return when {
-            ability < -0.5f -> "easy"
-            ability > 0.5f -> "hard"
-            else -> "medium"
+    /**
+     * Преобразование категории сложности в числовое значение
+     */
+    private fun getDifficultyValueFromCategory(difficulty: String): Float {
+        return when (difficulty) {
+            "easy" -> -1.0f
+            "medium" -> 0.0f
+            "hard" -> 1.0f
+            else -> 0.0f
         }
     }
 
