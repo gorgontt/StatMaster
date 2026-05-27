@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -16,19 +17,24 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -36,19 +42,53 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.statmaster.AuthManager
 import com.example.statmaster.R
+import com.example.statmaster.Routes
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Transparent
 import com.example.statmaster.ui.theme.White
+import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainClass(navController: NavController){
 
     //val navController = LocalNavController.current
+
+    val context = LocalContext.current
+    val authManager = remember { AuthManager(context) }
+    val coroutineScope = rememberCoroutineScope()
+
+    var isCheckingSession by remember { mutableStateOf(true) }
+
+
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            val session = authManager.supabase.auth.currentSessionOrNull()
+            if (session != null) {
+                navController.navigate(Routes.MainContent.route) {
+                    popUpTo(Routes.MainClass.route) { inclusive = true }
+                }
+            }
+            isCheckingSession = false
+        }
+    }
+
+    // Пока проверяем сессию — показываем загрузку
+    if (isCheckingSession) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -91,15 +131,15 @@ fun MainClass(navController: NavController){
 
 
             val sheetState = rememberModalBottomSheetState(
-                skipPartiallyExpanded = true, // Пропускаем частичное раскрытие
-                //initialValue = ModalBottomSheetValue.Expanded // Начинаем с раскрытого состояния
+                skipPartiallyExpanded = true,
+
             )
             var isSheetOpen by rememberSaveable { mutableStateOf(false) }
 
 
             val sheet2State = rememberModalBottomSheetState(
-                skipPartiallyExpanded = true, // Пропускаем частичное раскрытие
-                //initialValue = ModalBottomSheetValue.Expanded // Начинаем с раскрытого состояния
+                skipPartiallyExpanded = true,
+
             )
             var isSheet2Open by rememberSaveable { mutableStateOf(false) }
 

@@ -31,16 +31,42 @@ class AdaptiveTestingRepository(
         private const val REQUEST_TIMEOUT_MS = 15000L
     }
 
-    // Инициализация профиля пользователя (локальная, без БД)
     suspend fun initializeUserAbility(userId: String) {
-        val localAbility = UserAbility(
-            userId = userId,
-            abilityLevel = INITIAL_ABILITY,
-            abilityVariance = INITIAL_VARIANCE,
-            questionsAnswered = 0
-        )
-        _userAbility.value = localAbility
-        Log.d("AdaptiveTest", "Локальный профиль создан для пользователя: $userId")
+        try {
+            val existingAbility = authManager.supabase.postgrest
+                .from("user_ability")
+                .select(Columns.raw("""*""")) {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeSingleOrNull<UserAbility>()
+
+            if (existingAbility != null) {
+                _userAbility.value = existingAbility
+            } else {
+                val newAbility = UserAbility(
+                    userId = userId,
+                    abilityLevel = INITIAL_ABILITY,
+                    abilityVariance = INITIAL_VARIANCE,
+                    questionsAnswered = 0
+                )
+
+                authManager.supabase.postgrest
+                    .from("user_ability")
+                    .insert(newAbility)
+
+                _userAbility.value = newAbility
+            }
+        } catch (e: Exception) {
+            Log.e("AdaptiveTesting", "Error initializing user ability", e)
+            // fallback на локальный профиль
+            val localAbility = UserAbility(
+                userId = userId,
+                abilityLevel = INITIAL_ABILITY,
+                abilityVariance = INITIAL_VARIANCE,
+                questionsAnswered = 0
+            )
+            _userAbility.value = localAbility
+        }
     }
 
     /**
@@ -84,6 +110,7 @@ class AdaptiveTestingRepository(
                 val candidateQuestions = if (notAskedQuestions.isNotEmpty()) notAskedQuestions else questionsWithAnswers
 
                 // НЕПРЕРЫВНЫЙ ВЫБОР: ищем вопрос с difficulty_value, наиболее близким к текущему уровню
+
                 val selectedQuestion = candidateQuestions.minByOrNull { question ->
                     val questionDifficulty = question.difficultyValue ?: 0.0
                     abs(questionDifficulty - ability.abilityLevel)
@@ -144,8 +171,6 @@ class AdaptiveTestingRepository(
 
         val userId = ability.userId
         val abilityBefore = ability.abilityLevel
-
-        // Для обновления уровня используем числовое значение сложности
         val difficultyValue = getDifficultyValueFromCategory(difficulty)
         val updatedAbility = updateAbilityLevelWithValue(
             currentAbility = ability.abilityLevel,
@@ -153,8 +178,6 @@ class AdaptiveTestingRepository(
             difficultyValue = difficultyValue,
             isCorrect = isCorrect
         )
-
-        Log.d("AdaptiveTest", "processAnswer: вопрос=$questionId, isCorrect=$isCorrect, уровень был=$abilityBefore, стал=${updatedAbility.first}")
 
         val response = UserResponse(
             userId = userId,
@@ -175,7 +198,36 @@ class AdaptiveTestingRepository(
         )
         _userAbility.value = newAbility
 
-        // Сохранение в БД временно отключено для стабильности
+        // ИСПРАВЛЕННОЕ СОХРАНЕНИЕ: используем data-класс вместо Map
+        try {
+            // Создаём объект для обновления
+            val abilityUpdate = UserAbility(
+                userId = userId,
+                abilityLevel = newAbility.abilityLevel,
+                abilityVariance = newAbility.abilityVariance,
+                questionsAnswered = newAbility.questionsAnswered
+            )
+
+            authManager.supabase.postgrest
+                .from("user_ability")
+                .update(abilityUpdate) {
+                    filter { eq("user_id", userId) }
+                }
+            Log.d("AdaptiveTest", "Уровень пользователя обновлён в БД")
+        } catch (e: Exception) {
+            Log.e("AdaptiveTest", "Error updating user ability in DB", e)
+        }
+
+        // Сохраняем ответ
+        try {
+            authManager.supabase.postgrest
+                .from("user_responses")
+                .insert(response)
+            Log.d("AdaptiveTest", "Ответ сохранён в БД")
+        } catch (e: Exception) {
+            Log.e("AdaptiveTest", "Error saving response to DB", e)
+        }
+
         Log.d("AdaptiveTest", "processAnswer завершён, новый уровень=${newAbility.abilityLevel}, отвечено вопросов=${sessionResponses.size}")
     }
 

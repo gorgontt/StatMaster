@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -92,6 +94,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
     val levelRepository = remember { LevelRepository(authManager, context) }
+
+    var resetTest by remember { mutableStateOf(false) }
+    var showResetDialog by remember { mutableStateOf(false) }
 
     var levelDocument by remember { mutableStateOf<LevelDocument?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -159,6 +164,15 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                             checkedAnswers = loadedQuestions.map { it.id }.toSet()
                             answersChecked = true
                             testCompleted = true
+
+                            // Загружаем сохраненный результат теста из SharedPreferences
+                            val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
+                            val savedCorrect = resultsPref.getInt("correct_$levelId", -1)
+                            val savedTotal = resultsPref.getInt("total_$levelId", 0)
+                            if (savedCorrect != -1 && savedTotal > 0) {
+                                // Результат уже сохранен, можно использовать при необходимости
+                                Log.d("DocumentationLevel", "Loaded saved result: $savedCorrect/$savedTotal")
+                            }
                         }
                     }
                 } else {
@@ -188,6 +202,16 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 if (!updateSuccess) {
                     showError = true
                     return@launch
+                }
+
+                // Сохраняем результат теста в SharedPreferences (если это тест)
+                if (isTest && questions.isNotEmpty()) {
+                    val (correct, total) = calculateScore(questions, userAnswers)
+                    val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
+                    resultsPref.edit().putString("result_$levelId", "$correct/$total").apply()
+                    resultsPref.edit().putInt("correct_$levelId", correct).apply()
+                    resultsPref.edit().putInt("total_$levelId", total).apply()
+                    Log.d("DocumentationLevel", "Saved test result: $correct/$total for level $levelId")
                 }
 
                 // Сохраняем локально
@@ -227,6 +251,14 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                     apply()
                 }
 
+                // Сохраняем результат теста в SharedPreferences
+                val (correct, total) = calculateScore(questions, userAnswers)
+                val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
+                resultsPref.edit().putString("result_$levelId", "$correct/$total").apply()
+                resultsPref.edit().putInt("correct_$levelId", correct).apply()
+                resultsPref.edit().putInt("total_$levelId", total).apply()
+                Log.d("DocumentationLevel", "Saved test result: $correct/$total for level $levelId")
+
                 val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
                 if (!updateSuccess) {
                     showError = true
@@ -253,6 +285,68 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 isLoading = false
             }
         }
+    }
+
+    // Функция сброса теста
+    val resetTestData: () -> Unit = {
+        coroutineScope.launch {
+            // Очищаем ответы пользователя
+            userAnswers = emptyMap()
+            checkedAnswers = emptySet()
+            answersChecked = false
+            testCompleted = false
+            showAnswerAllQuestionsWarning = false
+
+            if (levelId != null) {
+                // 1. Очищаем сохраненные ответы в SharedPreferences
+                val answersPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
+                questions.forEach { question ->
+                    answersPref.edit().remove("answer_${levelId}_${question.id}").apply()
+                }
+
+                // 2. Очищаем результат теста
+                val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
+                resultsPref.edit().remove("correct_$levelId").apply()
+                resultsPref.edit().remove("total_$levelId").apply()
+                resultsPref.edit().remove("result_$levelId").apply()
+
+                // 3. Сбрасываем статус завершения уровня в SharedPreferences
+                val progressPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                progressPref.edit().putBoolean("level_$levelId", false).apply()
+
+                // 4. Обновляем в базе данных Supabase
+                levelRepository.updateLevelCompletion(levelId, false)
+
+                // 5. ОТПРАВЛЯЕМ СИГНАЛ ДЛЯ ОБНОВЛЕНИЯ ЭКРАНА УРОВНЕЙ
+                navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
+            }
+
+            resetTest = !resetTest
+            Toast.makeText(context, "Тест сброшен. Можно проходить заново.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Сбросить тест") },
+            text = { Text("Вы уверены, что хотите пройти тест заново? Все предыдущие ответы будут удалены.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showResetDialog = false
+                        resetTestData()
+                    }
+                ) {
+                    Text("Да, сбросить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -346,7 +440,8 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                                 Toast.makeText(context, "Ответьте на все вопросы перед проверкой", Toast.LENGTH_SHORT).show()
                             }
                         },
-                        onCompleteTest = { completeTest() }
+                        onCompleteTest = { completeTest() },
+                        onResetTest = { showResetDialog = true }
                     )
                 }
                 levelDocument != null -> {
@@ -372,21 +467,21 @@ fun TestBottomBar(
     testCompleted: Boolean,
     totalQuestions: Int,
     onCheckAnswers: () -> Unit,
-    onCompleteTest: () -> Unit
+    onCompleteTest: () -> Unit,
+    onResetTest: () -> Unit  // ← добавить новый параметр
 ) {
     BottomAppBar(
         containerColor = BackgroundColor,
-        //modifier = Modifier.height(120.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Блок с количеством правильных ответов
             Card(
                 modifier = Modifier
                     .padding(start = 30.dp)
-//                    .border(2.dp, Green, RoundedCornerShape(30.dp))
                     .shadow(4.dp, RoundedCornerShape(30.dp)),
                 shape = RoundedCornerShape(30.dp)
             ) {
@@ -431,20 +526,25 @@ fun TestBottomBar(
                     )
                 }
             }
+
+            // Кнопка действия
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 10.dp, end = 30.dp)
-//                    .border(2.dp, Green, RoundedCornerShape(30.dp))
                     .shadow(4.dp, RoundedCornerShape(30.dp)),
                 shape = RoundedCornerShape(30.dp)
             ) {
                 Button(
                     onClick = {
-                        if (!answersChecked) {
-                            onCheckAnswers()
-                        } else {
-                            onCompleteTest()
+                        when {
+                            testCompleted -> {
+                                // Если тест завершен — показываем диалог подтверждения
+                                // или сразу сбрасываем
+                                onResetTest()
+                            }
+                            !answersChecked -> onCheckAnswers()
+                            else -> onCompleteTest()
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -455,7 +555,7 @@ fun TestBottomBar(
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when {
-                            testCompleted -> Green
+                            testCompleted -> Color(0xFFFF9800)  // Оранжевый для кнопки сброса
                             answersChecked -> Green
                             else -> DarkBlue
                         }
@@ -464,7 +564,7 @@ fun TestBottomBar(
                     Text(
                         modifier = Modifier.padding(vertical = 10.dp),
                         text = when {
-                            testCompleted -> "Тест завершен"
+                            testCompleted -> "Пройти тест заново"
                             answersChecked -> "Завершить тест"
                             else -> "Проверить ответы"
                         },
@@ -803,7 +903,7 @@ fun QuestionCard(
             Text(
                 text = question.questionText,
                 style = TextStyle(
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontFamily = FontFamily(Font(R.font.jura_semibold))
                 ),
                 modifier = Modifier.padding(bottom = 15.dp)

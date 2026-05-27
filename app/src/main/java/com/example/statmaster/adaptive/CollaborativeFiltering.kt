@@ -16,31 +16,23 @@ class CollaborativeFiltering(
 ) {
 
     companion object {
-        private const val SIMILARITY_THRESHOLD = 0.5f
+        private const val SIMILARITY_THRESHOLD = 0.1f
         private const val MAX_RECOMMENDATIONS = 5
         private const val VECTOR_SIZE = 20
     }
 
     private val userVectors = mutableMapOf<String, FloatArray>()
 
-    /**
-     * Построение вектора пользователя на основе его ответов
-     */
     suspend fun buildUserVector(userId: String): FloatArray {
         try {
             Log.d("CollaborativeFiltering", "Building user vector for: $userId")
-
-            // Получаем историю ответов пользователя
             val responses = authManager.supabase.postgrest
                 .from("user_responses")
                 .select(Columns.raw("question_id, is_correct")) {
                     filter { eq("user_id", userId) }
                 }
                 .decodeList<UserResponseSimple>()
-
             Log.d("CollaborativeFiltering", "Found ${responses.size} responses")
-
-            // Получаем уровень способностей из IRT
             val ability = try {
                 authManager.supabase.postgrest
                     .from("user_ability")
@@ -52,13 +44,8 @@ class CollaborativeFiltering(
                 Log.e("CollaborativeFiltering", "Error getting ability", e)
                 null
             }
-
-            // Группируем ответы по question_id
             val questionStats = responses.groupBy { it.questionId }
-
-            // Строим вектор
             val vector = FloatArray(VECTOR_SIZE) { 0f }
-
             var index = 0
             for ((_, questionResponses) in questionStats) {
                 if (index < VECTOR_SIZE - 1) {
@@ -70,15 +57,9 @@ class CollaborativeFiltering(
                     index++
                 } else break
             }
-
-            // Добавляем уровень способностей в последний элемент
             vector[VECTOR_SIZE - 1] = ability?.abilityLevel ?: 0f
-
             userVectors[userId] = vector
-
-            // Сохраняем вектор
             saveUserVector(userId, vector)
-
             Log.d("CollaborativeFiltering", "User vector built successfully")
             return vector
 
@@ -88,45 +69,34 @@ class CollaborativeFiltering(
         }
     }
 
-    /**
-     * Сохранение вектора пользователя в базу данных
-     */
     private suspend fun saveUserVector(userId: String, vector: FloatArray) {
         try {
             val vectorList = vector.toList()
+            val existing = authManager.supabase.postgrest
+                .from("user_vectors")
+                .select(Columns.raw("user_id")) {
+                    filter { eq("user_id", userId) }
+                }
+                .decodeList<UserVector>()
 
-            // Сначала удаляем существующую запись (если есть)
-            try {
+            if (existing.isEmpty()) {
                 authManager.supabase.postgrest
                     .from("user_vectors")
-                    .delete {
+                    .insert(UserVector(userId, vectorList))
+            } else {
+                authManager.supabase.postgrest
+                    .from("user_vectors")
+                    .update(UserVector(userId, vectorList)) {
                         filter { eq("user_id", userId) }
                     }
-            } catch (e: Exception) {
-                Log.d("CollaborativeFiltering", "No existing record to delete")
             }
 
-            // Вставляем новую запись
-            val newVector = UserVector(
-                userId = userId,
-                topicVector = vectorList
-            )
-
-            authManager.supabase.postgrest
-                .from("user_vectors")
-                .insert(newVector)
-
             Log.d("CollaborativeFiltering", "User vector saved for: $userId")
-
         } catch (e: Exception) {
             Log.e("CollaborativeFiltering", "Error saving user vector", e)
             e.printStackTrace()
         }
     }
-
-    /**
-     * Загрузка вектора пользователя из базы данных
-     */
     private suspend fun loadUserVector(userId: String): FloatArray? {
         return try {
             val userVector = authManager.supabase.postgrest
@@ -145,10 +115,6 @@ class CollaborativeFiltering(
             null
         }
     }
-
-    /**
-     * Вычисление косинусной близости между двумя векторами
-     */
     fun cosineSimilarity(vector1: FloatArray, vector2: FloatArray): Float {
         if (vector1.size != vector2.size) return 0f
 
@@ -166,10 +132,6 @@ class CollaborativeFiltering(
 
         return dotProduct / (sqrt(norm1) * sqrt(norm2))
     }
-
-    /**
-     * Поиск похожих пользователей
-     */
     suspend fun findSimilarUsers(userId: String): List<SimilarUser> {
         try {
             val currentVector = userVectors[userId] ?: loadUserVector(userId) ?: buildUserVector(userId)
@@ -188,13 +150,10 @@ class CollaborativeFiltering(
                 val otherVector = other.topicVector.toFloatArray()
                 val similarity = cosineSimilarity(currentVector, otherVector)
 
+                Log.d("CollaborativeFiltering", "Сходство с ${other.userId}: $similarity")
+
                 if (similarity > SIMILARITY_THRESHOLD) {
-                    similarUsers.add(
-                        SimilarUser(
-                            userId = other.userId,
-                            similarityScore = similarity
-                        )
-                    )
+                    similarUsers.add(SimilarUser(other.userId, similarity))
                 }
             }
 
@@ -207,9 +166,6 @@ class CollaborativeFiltering(
         }
     }
 
-    /**
-     * Рекомендация вопросов на основе коллаборативной фильтрации
-     */
     suspend fun getCollaborativeRecommendations(
         userId: String,
         currentTopicId: Int? = null,
@@ -252,8 +208,6 @@ class CollaborativeFiltering(
             }
 
             Log.d("CollaborativeFiltering", "Top question IDs: $topQuestionIds")
-
-            // Загружаем вопросы по ID
             val questions = mutableListOf<QuestionWithAnswers>()
             for (qId in topQuestionIds) {
                 try {

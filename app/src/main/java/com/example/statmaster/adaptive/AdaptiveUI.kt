@@ -405,7 +405,7 @@ fun TestCompleteScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -417,7 +417,7 @@ fun TestCompleteScreen(
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
+                modifier = Modifier.padding(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
@@ -453,14 +453,14 @@ fun TestCompleteScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (recommendations.isNotEmpty()) {
                     Text(
                         text = "Рекомендации:",
-                        fontSize = 20.sp,
+                        fontSize = 16.sp,
                         fontFamily = FontFamily(Font(R.font.jura_semibold)),
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 6.dp)
                     )
 
                     recommendations.forEach { rec ->
@@ -489,7 +489,7 @@ fun TestCompleteScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
                         onClick = onRestart,

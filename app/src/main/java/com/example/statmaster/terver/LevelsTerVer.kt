@@ -2,6 +2,7 @@ package com.example.statmaster.terver
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -89,6 +90,12 @@ fun LevelsTerVer(navController: NavController, scrollToChapter: String? = null) 
 
     val lazyListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+
+    LaunchedEffect(Unit) {
+        levels.clear()
+        levels.addAll(levelRepository.getAllLevels())
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -277,14 +284,20 @@ fun LevelCard(level: Level, navController: NavController) {
             .getBoolean("level_${level.id}", false)
     }
 
-    // состояние для хранения количества правильных ответов
-    var correctAnswers by remember { mutableStateOf(0) }
-    var totalQuestions by remember { mutableStateOf(0) }
-    var isTestCompleted by remember { mutableStateOf(false) }
+    // ✅ ДОБАВИТЬ: Мгновенная загрузка результата из SharedPreferences
+    val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
+    val savedCorrect = resultsPref.getInt("correct_${level.id}", -1)
+    val savedTotal = resultsPref.getInt("total_${level.id}", 0)
 
-    // Загружаем данные теста, если это тест
+    // состояние для хранения количества правильных ответов
+    var correctAnswers by remember { mutableStateOf(if (savedCorrect != -1) savedCorrect else 0) }
+    var totalQuestions by remember { mutableStateOf(savedTotal) }
+    var isTestCompleted by remember { mutableStateOf(savedCorrect != -1) }
+    var isLoading by remember { mutableStateOf(savedCorrect == -1 && (level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест"))) }
+
+    // Загружаем данные теста, если это тест И нет сохранённого результата
     LaunchedEffect(level.id) {
-        if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) {
+        if ((level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) && !isTestCompleted) {
             coroutineScope.launch {
                 val test = levelRepository.getTestByLevelId(level.id)
                 test?.let {
@@ -297,39 +310,34 @@ fun LevelCard(level: Level, navController: NavController) {
                         q.id to sharedPref.getInt("answer_${level.id}_${q.id}", -1)
                     }
 
-                    // Проверяем, все ли вопросы отвечены
                     val allQuestionsAnswered = userAnswers.values.all { it != -1 }
 
                     if (allQuestionsAnswered) {
                         val (correct, total) = calculateScore(questions, userAnswers)
                         correctAnswers = correct
-                        isTestCompleted = true // Устанавливаем флаг завершения теста
-                    } else {
-                        isTestCompleted = false
-                        correctAnswers = 0
+                        isTestCompleted = true
+                        // Сохраняем в SharedPreferences для быстрого доступа в следующий раз
+                        resultsPref.edit().putInt("correct_${level.id}", correct).apply()
+                        resultsPref.edit().putInt("total_${level.id}", total).apply()
                     }
                 }
-
+                isLoading = false
             }
         }
     }
 
-    // Определяем цвет карточки
+    // Определяем цвет карточки (без изменений)
     val cardColor = when {
         (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Green
         (level.title.startsWith("Итоговый") && (level.isCompleted || isCompletedLocally)) -> DarkBlue
-
         (level.isCompleted || isCompletedLocally) -> Green
-
         (level.title.startsWith("Тест") || level.title.startsWith("Итоговый")) -> White
-
         else -> White
     }
 
     val textColor = when {
         (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Black
         (level.title.startsWith("Итоговый") && (level.isCompleted || isCompletedLocally)) -> Color.Yellow
-
         else -> Black
     }
 
@@ -387,9 +395,9 @@ fun LevelCard(level: Level, navController: NavController) {
 
                 if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый")) {
                     val starIcon = if (level.isCompleted || isCompletedLocally || isTestCompleted) {
-                        R.drawable.star_icon_yellow // Тест выполнен
+                        R.drawable.star_icon_yellow
                     } else {
-                        R.drawable.star_icon_gray // Тест не выполнен
+                        R.drawable.star_icon_gray
                     }
 
                     Image(
@@ -400,10 +408,10 @@ fun LevelCard(level: Level, navController: NavController) {
                 }
             }
 
+            // ✅ ПОКАЗЫВАЕМ РЕЗУЛЬТАТ СРАЗУ (если есть)
             if ((level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) && isTestCompleted) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Row (modifier = Modifier.fillMaxWidth()
-                    .padding(start = 10.dp, end = 10.dp)){
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp)) {
                     Text(
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Center,
@@ -412,6 +420,18 @@ fun LevelCard(level: Level, navController: NavController) {
                             color = if (level.title.startsWith("Итоговый тест")) White else Black,
                             fontSize = 14.sp,
                             fontFamily = FontFamily(Font(R.font.jura_semibold)))
+                    )
+                }
+            } else if (isLoading) {
+                // Показываем индикатор загрузки, если результат ещё не загружен
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(modifier = Modifier.fillMaxWidth().padding(start = 10.dp, end = 10.dp)) {
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        text = "Загрузка результатов...",
+                        fontSize = 12.sp,
+                        color = Color.Gray
                     )
                 }
             }

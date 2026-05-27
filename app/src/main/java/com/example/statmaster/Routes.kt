@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.statmaster.adaptive.AdaptiveTestResultScreen
 import com.example.statmaster.adaptive.AdaptiveTestScreen
 import com.example.statmaster.adaptive.AdaptiveTopicSelectionScreen
 import com.example.statmaster.auth.MainClass
@@ -51,6 +52,10 @@ fun Navigation() {
     ) {
         composable(Routes.MainClass.route) { MainClass(navController) }
         composable(Routes.MainContent.route) { MainContent(navController) }
+
+        composable("demo_recommendations") {
+            AdaptiveTestResultScreen(navController = navController)
+        }
 
         //Terver
         composable(

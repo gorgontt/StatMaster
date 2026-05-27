@@ -1,6 +1,7 @@
 package com.example.statmaster.auth
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,10 +72,13 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var repeatPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
+
 
     Column(
         modifier = Modifier
@@ -198,6 +202,16 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
                 focusedTextColor = Black
             )
         )
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = Color.Red,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 30.dp)
+            )}
+
+
 
         Spacer(modifier = Modifier.height(30.dp))
 
@@ -238,6 +252,7 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
                                     }
                                     is AuthResponse.Error -> {
                                         Log.d("auth", "Email failed: ${result.message}")
+                                        Toast.makeText(context, result.message ?: "Ошибка регистрации", Toast.LENGTH_LONG).show()
                                     }
                                 }
                             }.launchIn(coroutineScope)

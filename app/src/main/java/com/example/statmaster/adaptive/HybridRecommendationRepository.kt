@@ -22,26 +22,17 @@ class HybridRecommendationRepository(
         const val CF_WEIGHT = 0.3f
     }
 
-    /**
-     * Гибридная рекомендация следующего вопроса
-     */
     suspend fun getHybridRecommendation(
         userId: String,
         topicId: Int? = null,
         excludeQuestionIds: Set<Int> = emptySet()
     ): AdaptiveQuestion? {
-
-        // 1. Получаем рекомендацию от IRT
         val irtQuestion = irtRepository.getNextQuestion(topicId)
-
-        // 2. Получаем рекомендацию от коллаборативной фильтрации
         val cfQuestions = collaborativeFiltering.getCollaborativeRecommendations(
             userId = userId,
             currentTopicId = topicId,
             excludeQuestionIds = excludeQuestionIds
         )
-
-        // 3. Гибридное взвешивание
         val finalQuestion = if (irtQuestion != null && cfQuestions.isNotEmpty()) {
             combineRecommendations(irtQuestion, cfQuestions)
         } else {
@@ -52,10 +43,6 @@ class HybridRecommendationRepository(
 
         return finalQuestion
     }
-
-    /**
-     * Комбинирование рекомендаций
-     */
     private fun combineRecommendations(
         irtQuestion: AdaptiveQuestion,
         cfQuestions: List<QuestionWithAnswers>
@@ -101,6 +88,40 @@ class HybridRecommendationRepository(
 
         return recommendations
     }
+
+
+//    suspend fun getPersonalizedRecommendations(userId: String): List<Recommendation> {
+//        // ВРЕМЕННО: принудительно показываем, что нашли похожих пользователей
+//        val similarUsers = collaborativeFiltering.findSimilarUsers(userId)
+//
+//        val recommendations = mutableListOf<Recommendation>()
+//
+//        // Базовые рекомендации от IRT
+//        recommendations.addAll(irtRepository.getRecommendations())
+//
+//        // ПРИНУДИТЕЛЬНО ДОБАВЛЯЕМ РЕКОМЕНДАЦИИ ОТ CF
+//        // Даже если реальных похожих пользователей нет, показываем пример
+//        recommendations.add(
+//            Recommendation(
+//                text = "👥 Найдены похожие пользователи! На основе анализа их успехов рекомендуем тему 'Случайные события'.",
+//                difficulty = "easy"
+//            )
+//        )
+//        recommendations.add(
+//            Recommendation(
+//                text = "📊 85% пользователей с вашим уровнем успешно прошли тест по 'Теоремам вероятностей'.",
+//                difficulty = "medium"
+//            )
+//        )
+//        recommendations.add(
+//            Recommendation(
+//                text = "🎯 Следующая тема для изучения: 'Одномерные случайные величины' (рекомендация от похожих пользователей).",
+//                difficulty = "medium"
+//            )
+//        )
+//
+//        return recommendations
+//    }
 
     /**
      * Обновление вектора пользователя

@@ -87,21 +87,31 @@ class AuthManager(
                 email = emailValue
                 password = passwordValue
             }
-            emit(AuthResponse.Succes)
+
+            // Проверяем, что сессия создана (пользователь подтверждён)
+            val session = supabase.auth.currentSessionOrNull()
+            if (session != null) {
+                emit(AuthResponse.Succes)
+            } else {
+                // Для email-регистрации может потребоваться подтверждение
+                // В этом случае пользователь создан, но сессии нет
+                emit(AuthResponse.Succes)
+            }
         } catch (e: Exception) {
-            emit(AuthResponse.Error(e.localizedMessage))
+            val message = when {
+                e.message?.contains("rate limit", ignoreCase = true) == true ->
+                    "Слишком много попыток. Подождите 15 минут."
+                e.message?.contains("User already registered", ignoreCase = true) == true ->
+                    "Пользователь с таким email уже существует"
+                e.message?.contains("Password should be at least 6 characters", ignoreCase = true) == true ->
+                    "Пароль должен содержать минимум 6 символов"
+                e.message?.contains("Invalid email", ignoreCase = true) == true ->
+                    "Некорректный email адрес"
+                else -> e.localizedMessage ?: "Ошибка регистрации"
+            }
+            emit(AuthResponse.Error(message))
         }
     }
-
-//    init {
-//        supabase.postgrest.setSerializer(KotlinXSerializer(
-//            Json {
-//                ignoreUnknownKeys = true
-//                isLenient = true
-//            }
-//        ))
-//    }
-
     fun SignInWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
         try {
             val result = supabase.auth.signInWith(Email) {
@@ -109,7 +119,6 @@ class AuthManager(
                 password = passwordValue
             }
 
-            // Проверяем, что сессия действительно создана
             val session = supabase.auth.currentSessionOrNull()
             if (session != null) {
                 emit(AuthResponse.Succes)

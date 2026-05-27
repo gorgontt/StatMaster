@@ -25,3 +25,5 @@ data class UserResponseSimple(
 data class UserAbilitySimple(
     @SerialName("ability_level") val abilityLevel: Float
 )
+
+
