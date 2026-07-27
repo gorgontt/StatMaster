@@ -1,5 +1,6 @@
 package com.example.statmaster
 
+import android.R.id.message
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -20,13 +21,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,19 +43,31 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.statmaster.ui.theme.BackgroundColor
+import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
+import com.example.statmaster.ui.theme.Grey
+import com.example.statmaster.ui.theme.LightBlue
+import com.example.statmaster.ui.theme.Purple
+import com.example.statmaster.ui.theme.PurpleLight
 import com.example.statmaster.ui.theme.Transparent
 import com.example.statmaster.ui.theme.White
 
@@ -89,13 +108,65 @@ fun MainContent(navController: NavController) {
 
         Text(
             modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 16.dp),
+                .padding(top = 16.dp, start = 20.dp),
             text = "Библиотека",
             style = TextStyle(
-                color = DarkBlue,
-                fontSize = 30.sp,
+                color = Black,
+                fontSize = 24.sp,
                 fontFamily = FontFamily(Font(R.font.jura_semibold))
+            )
+        )
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        val message = remember{mutableStateOf("")}
+        val focusManager = LocalFocusManager.current
+
+        OutlinedTextField(
+            modifier = Modifier
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 10.dp,
+                    shape = RoundedCornerShape(40.dp),
+                    clip = true
+                )
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(40.dp)
+                ),
+            value = message.value,
+            onValueChange = { message.value = it },
+            textStyle = TextStyle(fontSize = 14.sp),
+            placeholder = {
+                Text(
+                    text = "Поиск",
+                    fontSize = 14.sp,
+                    color = Grey
+                )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent
+            ),
+            shape = RoundedCornerShape(40.dp),
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.search),
+                    contentDescription = "Поиск",
+                    tint = Grey
+                )
+            },
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Done,
+                keyboardType = KeyboardType.Text
+            ),
+            singleLine = true,
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus() // Скрывает клавиатуру и убирает фокус
+                }
             )
         )
 
@@ -140,10 +211,9 @@ fun MainContent(navController: NavController) {
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
                 .clickable {
-                    // Открываем выбор темы для адаптивного теста
                     navController.navigate("adaptive_topic_selection")
                 },
-            shape = RoundedCornerShape(60.dp),
+            shape = RoundedCornerShape(27.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 10.dp),
             colors = CardDefaults.cardColors(containerColor = White)
         ) {
@@ -162,35 +232,18 @@ fun MainContent(navController: NavController) {
                     Text(
                         text = "Адаптивный тест",
                         fontSize = 18.sp,
-                        color = DarkBlue,
+                        color = Black,
                         fontFamily = FontFamily(Font(R.font.jura_semibold))
                     )
                     Text(
                         text = "Тест подбирает вопросы под ваш уровень",
-                        color = DarkBlue,
+                        color = Grey,
                         fontSize = 14.sp
                     )
                 }
             }
         }
-
-        Button(
-            onClick = { navController.navigate("demo_recommendations") },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = DarkBlue)
-        ) {
-            Text("Пример работы коллаборативной фильтрации", color = Color.White)
-        }
-
-
     }
-}
-
-// Создайте новый экран выбора темы
-@Composable
-fun AdaptiveTopicSelection(navController: NavController) {
-    // Показывает список доступных тем
-    // При выборе → AdaptiveTestScreen с topicId
 }
 
 @Composable
@@ -208,56 +261,70 @@ fun ExpandableCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 3.dp),
-        shape = RoundedCornerShape(33.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkBlue),
+        shape = RoundedCornerShape(27.dp),
+
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded }
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = title,
-                    style = TextStyle(
-                        color = White,
-                        fontSize = 20.sp,
-                        fontFamily = FontFamily(Font(R.font.jura))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            Blue,
+                            LightBlue
+                        ),
+                        startX = 0f,
+                        endX = 1000f
                     )
                 )
-
-                Image(
-                    painter = painterResource(id = R.drawable.arrow_icon_white),
-                    contentDescription = "Expand/Collapse",
+        ) {
+            Column {
+                Row(
                     modifier = Modifier
-                        .size(24.dp)
-                        .rotate(rotation)
-                )
-            }
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded }
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = title,
+                        style = TextStyle(
+                            color = White,
+                            fontSize = 20.sp,
+                            fontFamily = FontFamily(Font(R.font.jura))
+                        )
+                    )
 
-            // Анимированное раскрытие списка опций
-            AnimatedVisibility(
-                visible = expanded,
-                enter = expandVertically(animationSpec = tween(300)),
-                exit = shrinkVertically(animationSpec = tween(300))
-            ) {
-                Column {
-                    Divider(color = White.copy(alpha = 0.3f), thickness = 1.dp)
+                    Image(
+                        painter = painterResource(id = R.drawable.arrow_icon_white),
+                        contentDescription = "Expand/Collapse",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(rotation)
+                    )
+                }
 
-                    options.forEachIndexed { index, option ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onItemSelected(option)
-                                    expanded = false
-                                }
-                                .padding(vertical = 12.dp, horizontal = 16.dp)
-                        ) {
+                // Анимированное раскрытие списка опций
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = expandVertically(animationSpec = tween(300)),
+                    exit = shrinkVertically(animationSpec = tween(300))
+                ) {
+                    Column {
+                        Divider(color = White.copy(alpha = 0.3f), thickness = 1.dp)
+
+                        options.forEachIndexed { index, option ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onItemSelected(option)
+                                        expanded = false
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 16.dp)
+                            ) {
 
 
                                 Text(
@@ -271,15 +338,16 @@ fun ExpandableCard(
                                 )
 
 
-                        }
+                            }
 
-                        // Разделитель между элементами (кроме последнего)
-                        if (index < options.size - 1) {
-                            Divider(
-                                color = White.copy(alpha = 0.2f),
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
+                            // Разделитель между элементами (кроме последнего)
+                            if (index < options.size - 1) {
+                                Divider(
+                                    color = White.copy(alpha = 0.2f),
+                                    thickness = 0.5.dp,
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                            }
                         }
                     }
                 }

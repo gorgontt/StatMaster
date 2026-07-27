@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose.android)
     implementation(libs.play.services.drive)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.ui.text)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
