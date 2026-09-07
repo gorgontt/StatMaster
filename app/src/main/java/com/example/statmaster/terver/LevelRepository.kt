@@ -117,7 +117,7 @@ class LevelRepository(private val authManager: AuthManager,  private val context
 
     fun markLevelAsCompleted(levelId: Int) {
         val sharedPref =
-            authManager.context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+            authManager.getContext().getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putBoolean("level_$levelId", true)
             apply()
@@ -321,7 +321,7 @@ class LevelStatRepository(private val authManager: AuthManager,  private val con
 
     fun markLevelAsCompleted(levelId: Int) {
         val sharedPref =
-            authManager.context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+            authManager.getContext().getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
         with(sharedPref.edit()) {
             putBoolean("level_stat_$levelId", true)
             apply()

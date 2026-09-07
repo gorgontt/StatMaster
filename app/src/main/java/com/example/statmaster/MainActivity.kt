@@ -1,20 +1,17 @@
 package com.example.statmaster
 
-import android.content.ContentValues.TAG
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialException
+import com.example.statmaster.config.AppConfig
 import com.example.statmaster.ui.theme.StatMasterTheme
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
-import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
@@ -24,8 +21,6 @@ import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.gotrue.providers.builtin.IDToken
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.postgrest
-import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.ktor.client.plugins.websocket.WebSockets
@@ -35,7 +30,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.UUID
-import io.ktor.client.plugins.HttpTimeout
 
 class MainActivity : ComponentActivity() {
     @OptIn(SupabaseInternal::class)
@@ -55,30 +49,54 @@ sealed interface AuthResponse{
     data class Error(val message: String?): AuthResponse
 }
 
-class AuthManager(
-    val context: Context
-){
+class AuthManager(private val context: Context) {
+
+
+    fun getContext(): Context = context
+
+    companion object {
+        private const val TAG = "AuthManager"
+    }
+
     @OptIn(SupabaseInternal::class)
-    val supabase = createSupabaseClient(
-        supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdqbHh4Y2V0YW5jeGxxdHRxcWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0OTMwMzcsImV4cCI6MjA2ODA2OTAzN30.qt-xq9R7thW26-78Ri0chdC3Y0ut-PKOLTjAPZrriNg",
-        supabaseUrl = "https://gjlxxcetancxlqttqqdh.supabase.co"
-    ){
-        install(Realtime)
-        install(Auth)
-        install(Postgrest) {
-            serializer = KotlinXSerializer(Json {
-                ignoreUnknownKeys = true
-                isLenient = true
-            })
+    val supabase = try {
+        val url = AppConfig.SUPABASE_URL
+        val key = AppConfig.SUPABASE_KEY
+
+        Log.d(TAG, "🔐 Initializing Supabase client...")
+        Log.d(TAG, "📡 URL: $url")
+        Log.d(TAG, "🔑 Key length: ${key.length}")
+
+        if (key.isEmpty() || key == "your-development-key") {
+            Log.w(TAG, "⚠️ Using DEVELOPMENT key! This will not work in production.")
         }
-        httpConfig { this.install(WebSockets) }
-        httpConfig {
-            install(io.ktor.client.plugins.HttpTimeout) {
-                requestTimeoutMillis = 30000
-                connectTimeoutMillis = 30000
-                socketTimeoutMillis = 30000
+
+        createSupabaseClient(
+            supabaseKey = key,
+            supabaseUrl = url
+        ) {
+            install(Realtime)
+            install(io.github.jan.supabase.gotrue.Auth)
+            install(io.github.jan.supabase.postgrest.Postgrest) {
+                serializer = KotlinXSerializer(Json {
+                    ignoreUnknownKeys = true
+                    isLenient = true
+                })
+            }
+            httpConfig {
+                install(WebSockets)
+            }
+            httpConfig {
+                install(io.ktor.client.plugins.HttpTimeout) {
+                    requestTimeoutMillis = 30000
+                    connectTimeoutMillis = 30000
+                    socketTimeoutMillis = 30000
+                }
             }
         }
+    } catch (e: Exception) {
+        Log.e(TAG, "❌ Failed to create Supabase client", e)
+        throw e
     }
 
     fun SignUpWithEmail(emailValue: String, passwordValue: String): Flow<AuthResponse> = flow {
