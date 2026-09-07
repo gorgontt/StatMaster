@@ -127,20 +127,20 @@ fun MainClass(navController: NavController){
             .fillMaxWidth()
             .padding(start = 30.dp, end = 30.dp)
             .fillMaxHeight(0.4f)
-            .background(Blue)){
+            .background(Blue)) {
 
 
             val sheetState = rememberModalBottomSheetState(
                 skipPartiallyExpanded = true,
 
-            )
+                )
             var isSheetOpen by rememberSaveable { mutableStateOf(false) }
 
 
             val sheet2State = rememberModalBottomSheetState(
                 skipPartiallyExpanded = true,
 
-            )
+                )
             var isSheet2Open by rememberSaveable { mutableStateOf(false) }
 
 //            val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
@@ -165,10 +165,10 @@ fun MainClass(navController: NavController){
                     },
                 shape = RoundedCornerShape(30.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-            ){
+            ) {
 
                 Button(
-                    onClick = {isSheetOpen = true},
+                    onClick = { isSheetOpen = true },
                     //contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -178,7 +178,7 @@ fun MainClass(navController: NavController){
 
 
                     Text(
-                        modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
+                        modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
                         text = "Создать аккаунт",
                         style = TextStyle(
                             color = Black, fontSize = 20.sp, fontFamily = FontFamily(
@@ -203,9 +203,11 @@ fun MainClass(navController: NavController){
                 }
             }
 
-            Spacer(modifier = Modifier
-                .height(20.dp)
-                .background(BackgroundColor))
+            Spacer(
+                modifier = Modifier
+                    .height(20.dp)
+                    .background(BackgroundColor)
+            )
 
             Card(
                 modifier = Modifier
@@ -224,10 +226,10 @@ fun MainClass(navController: NavController){
                     },
                 shape = RoundedCornerShape(30.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-            ){
+            ) {
 
                 Button(
-                    onClick = {isSheet2Open = true},
+                    onClick = { isSheet2Open = true },
                     //contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -237,7 +239,7 @@ fun MainClass(navController: NavController){
 
 
                     Text(
-                        modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
+                        modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
                         text = "Войти",
                         style = TextStyle(
                             color = White, fontSize = 20.sp, fontFamily = FontFamily(
@@ -252,7 +254,14 @@ fun MainClass(navController: NavController){
                         containerColor = BackgroundColor,
                         sheetState = sheet2State,
                         onDismissRequest = { isSheet2Open = false },
-                        modifier = Modifier.fillMaxHeight(0.7f)
+                        shape = RoundedCornerShape(
+                            topStart = 24.dp,
+                            topEnd = 24.dp,
+                            bottomStart = 0.dp,
+                            bottomEnd = 0.dp
+                        ),
+                        dragHandle = {},
+                        scrimColor = Color.Black.copy(alpha = 0.5f)
                     ) {
                         BottomSheetSignInDialogContent(
                             onDismiss = { isSheet2Open = false },
@@ -260,7 +269,8 @@ fun MainClass(navController: NavController){
                         )
                     }
                 }
-            }}
+            }
+        }
 
 
 
