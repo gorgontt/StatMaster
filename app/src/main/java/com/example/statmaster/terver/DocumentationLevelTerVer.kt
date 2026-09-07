@@ -1,5 +1,6 @@
 package com.example.statmaster.terver
 
+import com.example.statmaster.auth.AuthManager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
@@ -66,7 +67,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
-import com.example.statmaster.AuthManager
 import com.example.statmaster.ContentBlock
 import com.example.statmaster.Level
 import com.example.statmaster.LevelDocument

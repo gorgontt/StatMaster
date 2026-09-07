@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.statmaster.AuthManager
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
 import com.example.statmaster.ui.theme.Blue
@@ -31,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import com.example.statmaster.Test
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.LightBlue
 import com.example.statmaster.ui.theme.RedColor

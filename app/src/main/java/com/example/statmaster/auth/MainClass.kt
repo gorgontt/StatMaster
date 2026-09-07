@@ -1,5 +1,6 @@
 package com.example.statmaster.auth
 
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,7 +43,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.statmaster.AuthManager
 import com.example.statmaster.R
 import com.example.statmaster.Routes
 import com.example.statmaster.ui.theme.BackgroundColor

@@ -1,5 +1,6 @@
 package com.example.statmaster.terver
 
+import com.example.statmaster.auth.AuthManager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
@@ -54,7 +55,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.statmaster.AuthManager
 import com.example.statmaster.Level
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor

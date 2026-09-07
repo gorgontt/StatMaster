@@ -1,8 +1,9 @@
 package com.example.statmaster.adaptive
 
+
 import android.content.Context
 import android.util.Log
-import com.example.statmaster.AuthManager
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.QuestionWithAnswers
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns

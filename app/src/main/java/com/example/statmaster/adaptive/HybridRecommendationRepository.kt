@@ -3,7 +3,7 @@ package com.example.statmaster.adaptive
 
 import android.content.Context
 import android.util.Log
-import com.example.statmaster.AuthManager
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.QuestionWithAnswers
 import com.example.statmaster.adaptive.AdaptiveQuestion
 import com.example.statmaster.adaptive.AdaptiveTestingRepository

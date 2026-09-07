@@ -1,5 +1,6 @@
 package com.example.statmaster.stat
 
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.terver.LevelRepository
 import com.example.statmaster.terver.calculateScore
 
@@ -57,7 +58,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.statmaster.AuthManager
 import com.example.statmaster.Level
 import com.example.statmaster.R
 import com.example.statmaster.terver.LevelStatRepository

@@ -1,6 +1,5 @@
-// app/build.gradle.kts
-import java.util.Properties  // ✅ Добавляем импорт
-import java.io.FileInputStream  // ✅ Добавляем для безопасности
+import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -29,11 +28,21 @@ android {
             localFile.inputStream().use {
                 localProperties.load(it)
             }
+            println("✅ local.properties loaded from: ${localFile.absolutePath}")
+        } else {
+            println("❌ local.properties NOT found at: ${localFile.absolutePath}")
         }
 
-        // ✅ Явно указываем типы
-        val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL") ?: ""
-        val supabaseKey: String = localProperties.getProperty("SUPABASE_KEY") ?: ""
+        // ✅ Берем значения из Properties
+        val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL")
+            ?: project.findProperty("SUPABASE_URL") as? String
+            ?: ""
+        val supabaseKey: String = localProperties.getProperty("SUPABASE_KEY")
+            ?: project.findProperty("SUPABASE_KEY") as? String
+            ?: ""
+
+        println("🔑 SUPABASE_URL: $supabaseUrl")
+        println("🔑 SUPABASE_KEY length: ${supabaseKey.length}")
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
@@ -75,6 +84,7 @@ android {
         }
     }
 }
+
 
 dependencies {
     // Core Android

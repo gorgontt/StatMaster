@@ -18,7 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.statmaster.AuthManager
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.R
 import com.example.statmaster.terver.QuestionCard
 import com.example.statmaster.ui.theme.BackgroundColor

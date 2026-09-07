@@ -1,5 +1,6 @@
 package com.example.statmaster
 
+import com.example.statmaster.auth.AuthManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
