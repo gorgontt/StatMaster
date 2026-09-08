@@ -70,11 +70,6 @@ class AdaptiveTestingRepository(
         }
     }
 
-    /**
-     * Получение следующего вопроса с непрерывным подбором сложности
-     * Вопрос выбирается так, чтобы его сложность (difficulty_value) была
-     * максимально близка к текущему уровню пользователя
-     */
     suspend fun getNextQuestion(topicId: Int? = null, retryCount: Int = 0): AdaptiveQuestion? {
         val ability = _userAbility.value
         if (ability == null) {
@@ -146,9 +141,9 @@ class AdaptiveTestingRepository(
         }
     }
 
-    /**
-     * Преобразование числовой сложности в категорию для отображения
-     */
+
+    // Преобразование числовой сложности в категорию для отображения
+
     private fun categorizeDifficulty(difficultyValue: Double): String {
         return when {
             difficultyValue <= -0.7 -> "easy"
@@ -199,9 +194,7 @@ class AdaptiveTestingRepository(
         )
         _userAbility.value = newAbility
 
-        // ИСПРАВЛЕННОЕ СОХРАНЕНИЕ: используем data-класс вместо Map
         try {
-            // Создаём объект для обновления
             val abilityUpdate = UserAbility(
                 userId = userId,
                 abilityLevel = newAbility.abilityLevel,
@@ -219,7 +212,6 @@ class AdaptiveTestingRepository(
             Log.e("AdaptiveTest", "Error updating user ability in DB", e)
         }
 
-        // Сохраняем ответ
         try {
             authManager.supabase.postgrest
                 .from("user_responses")
@@ -232,9 +224,9 @@ class AdaptiveTestingRepository(
         Log.d("AdaptiveTest", "processAnswer завершён, новый уровень=${newAbility.abilityLevel}, отвечено вопросов=${sessionResponses.size}")
     }
 
-    /**
-     * Обновление уровня способностей по IRT модели с числовым значением сложности
-     */
+
+    // Обновление уровня способностей по IRT модели с числовым значением сложности
+
     private fun updateAbilityLevelWithValue(
         currentAbility: Float,
         currentVariance: Float,
@@ -243,22 +235,16 @@ class AdaptiveTestingRepository(
     ): Pair<Float, Float> {
         val discrimination = 1.0f
 
-        // Вероятность правильного ответа по логистической функции
         val probability = 1.0f / (1.0f + exp(-discrimination * (currentAbility - difficultyValue)))
 
-        // Градиентный спуск
         val gradient = if (isCorrect) 1 - probability else -probability
         val newAbility = currentAbility + LEARNING_RATE * gradient * discrimination
 
-        // Уменьшаем дисперсию (уверенность растёт)
         val newVariance = currentVariance * 0.9f
 
         return Pair(newAbility, newVariance)
     }
 
-    /**
-     * Преобразование категории сложности в числовое значение
-     */
     private fun getDifficultyValueFromCategory(difficulty: String): Float {
         return when (difficulty) {
             "easy" -> -1.0f
@@ -268,7 +254,6 @@ class AdaptiveTestingRepository(
         }
     }
 
-    // Оценка уровня владения темой
     fun evaluateMasteryLevel(): MasteryLevel {
         val ability = _userAbility.value ?: return MasteryLevel.BEGINNER
 
@@ -285,7 +270,6 @@ class AdaptiveTestingRepository(
         }
     }
 
-    // Получение рекомендаций по дальнейшему обучению
     fun getRecommendations(): List<Recommendation> {
         val masteryLevel = evaluateMasteryLevel()
 
@@ -307,14 +291,11 @@ class AdaptiveTestingRepository(
             )
         }
     }
-
-    // Сброс сессии
     fun resetSession() {
         sessionResponses.clear()
         Log.d("AdaptiveTest", "Сессия сброшена")
     }
 
-    // Получение статистики по сессии
     fun getSessionStats(): SessionStats {
         val totalQuestions = sessionResponses.size
         val correctAnswers = sessionResponses.count { it.isCorrect }

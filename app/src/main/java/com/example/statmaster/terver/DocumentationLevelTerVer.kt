@@ -34,9 +34,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -81,11 +79,7 @@ import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.Green
 import com.example.statmaster.ui.theme.RedColor
 import com.example.statmaster.ui.theme.White
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -122,28 +116,23 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         )
     }
 
-    // Запускаем бесконечное вращение
     LaunchedEffect(Unit) {
         rotation.animateTo(360f, infiniteAnimation)
     }
 
-    // Основной эффект загрузки данных
     LaunchedEffect(levelId) {
         if (levelId != null) {
             try {
                 isLoading = true
                 showError = false
 
-                // Загружаем уровень
                 val loadedLevel = levelRepository.getLevelById(levelId)
                 currentLevel = loadedLevel
 
-                // Проверяем завершенность уровня
                 val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                 isLevelCompleted = loadedLevel?.isCompleted ?: sharedPref.getBoolean("level_$levelId", false)
 
                 if ((loadedLevel?.title?.startsWith("Тест") == true) || (loadedLevel?.title?.startsWith("Итоговый") == true)) {
-                    // Загрузка теста
                     val test = levelRepository.getTestByLevelId(levelId)
                     test?.let {
                         isTest = true
@@ -152,31 +141,26 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         questions = loadedQuestions
                         totalQuestions = loadedQuestions.size
 
-                        // Загрузка сохраненных ответов
                         val answersPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                         userAnswers = loadedQuestions.associate { question ->
                             val key = "answer_${levelId}_${question.id}"
                             question.id to if (answersPref.contains(key)) answersPref.getInt(key, -1) else null
                         }
 
-                        // Проверка завершенности теста
                         if (userAnswers.values.all { it != null }) {
                             checkedAnswers = loadedQuestions.map { it.id }.toSet()
                             answersChecked = true
                             testCompleted = true
 
-                            // Загружаем сохраненный результат теста из SharedPreferences
                             val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
                             val savedCorrect = resultsPref.getInt("correct_$levelId", -1)
                             val savedTotal = resultsPref.getInt("total_$levelId", 0)
                             if (savedCorrect != -1 && savedTotal > 0) {
-                                // Результат уже сохранен, можно использовать при необходимости
                                 Log.d("DocumentationLevel", "Loaded saved result: $savedCorrect/$savedTotal")
                             }
                         }
                     }
                 } else {
-                    // Загрузка документа
                     levelDocument = levelRepository.getLevelDocument(levelId)
                 }
             } catch (e: Exception) {
@@ -188,7 +172,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
-    // Функция завершения уровня
     val completeLevel: () -> Unit = {
         coroutineScope.launch {
             if (levelId == null) return@launch
@@ -197,14 +180,12 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             showError = false
 
             try {
-                // Обновляем в базе данных
                 val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
                 if (!updateSuccess) {
                     showError = true
                     return@launch
                 }
 
-                // Сохраняем результат теста в SharedPreferences (если это тест)
                 if (isTest && questions.isNotEmpty()) {
                     val (correct, total) = calculateScore(questions, userAnswers)
                     val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
@@ -214,14 +195,12 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                     Log.d("DocumentationLevel", "Saved test result: $correct/$total for level $levelId")
                 }
 
-                // Сохраняем локально
                 val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                 sharedPref.edit().putBoolean("level_$levelId", true).apply()
 
                 isLevelCompleted = true
                 Toast.makeText(context, "Урок успешно завершен", Toast.LENGTH_SHORT).show()
 
-                // Возвращаемся с флагом обновления
                 navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
                 navController.popBackStack()
             } catch (e: Exception) {
@@ -233,7 +212,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
-    // Функция завершения теста
     val completeTest = {
         coroutineScope.launch {
             if (levelId == null) return@launch
@@ -242,7 +220,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             showError = false
 
             try {
-                // Сохраняем все ответы перед завершением теста
                 val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                 with(sharedPref.edit()) {
                     userAnswers.forEach { (questionId, answerId) ->
@@ -251,7 +228,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                     apply()
                 }
 
-                // Сохраняем результат теста в SharedPreferences
                 val (correct, total) = calculateScore(questions, userAnswers)
                 val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
                 resultsPref.edit().putString("result_$levelId", "$correct/$total").apply()
@@ -265,7 +241,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                     return@launch
                 }
 
-                // Сохраняем в SharedPreferences
                 context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                     .edit()
                     .putBoolean("level_$levelId", true)
@@ -287,10 +262,8 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         }
     }
 
-    // Функция сброса теста
     val resetTestData: () -> Unit = {
         coroutineScope.launch {
-            // Очищаем ответы пользователя
             userAnswers = emptyMap()
             checkedAnswers = emptySet()
             answersChecked = false
@@ -298,26 +271,21 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             showAnswerAllQuestionsWarning = false
 
             if (levelId != null) {
-                // 1. Очищаем сохраненные ответы в SharedPreferences
                 val answersPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                 questions.forEach { question ->
                     answersPref.edit().remove("answer_${levelId}_${question.id}").apply()
                 }
 
-                // 2. Очищаем результат теста
                 val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
                 resultsPref.edit().remove("correct_$levelId").apply()
                 resultsPref.edit().remove("total_$levelId").apply()
                 resultsPref.edit().remove("result_$levelId").apply()
 
-                // 3. Сбрасываем статус завершения уровня в SharedPreferences
                 val progressPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                 progressPref.edit().putBoolean("level_$levelId", false).apply()
 
-                // 4. Обновляем в базе данных Supabase
                 levelRepository.updateLevelCompletion(levelId, false)
 
-                // 5. ОТПРАВЛЯЕМ СИГНАЛ ДЛЯ ОБНОВЛЕНИЯ ЭКРАНА УРОВНЕЙ
                 navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
             }
 
@@ -468,7 +436,7 @@ fun TestBottomBar(
     totalQuestions: Int,
     onCheckAnswers: () -> Unit,
     onCompleteTest: () -> Unit,
-    onResetTest: () -> Unit  // ← добавить новый параметр
+    onResetTest: () -> Unit
 ) {
     BottomAppBar(
         containerColor = BackgroundColor,
@@ -478,7 +446,6 @@ fun TestBottomBar(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Блок с количеством правильных ответов
             Card(
                 modifier = Modifier
                     .padding(start = 30.dp)
@@ -527,7 +494,6 @@ fun TestBottomBar(
                 }
             }
 
-            // Кнопка действия
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -539,8 +505,6 @@ fun TestBottomBar(
                     onClick = {
                         when {
                             testCompleted -> {
-                                // Если тест завершен — показываем диалог подтверждения
-                                // или сразу сбрасываем
                                 onResetTest()
                             }
                             !answersChecked -> onCheckAnswers()
@@ -599,8 +563,6 @@ fun LessonBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 30.dp)
-                //.background(Green)
-                //.border(2.dp, Green, RoundedCornerShape(30.dp))
                 .shadow(4.dp, RoundedCornerShape(30.dp)),
             shape = RoundedCornerShape(30.dp),
             colors = CardDefaults.cardColors(Green)
@@ -637,12 +599,10 @@ fun LessonBottomBar(
 @Composable
 fun RotatingLoader(rotation: Float) {
     Canvas(modifier = Modifier.size(70.dp)) {
-        // Фоновый круг
         drawCircle(
             color = BackgroundColor,
             radius = size.minDimension / 2 - 4.dp.toPx()
         )
-        // Вращающийся индикатор
         drawArc(
             color = Blue,
             startAngle = rotation - 90f,
@@ -667,7 +627,6 @@ fun TestContent(
 
     LaunchedEffect(checkedAnswers) {
         if (checkedAnswers.isNotEmpty()) {
-            // Сохраняем ответы пользователя
             val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
             with(sharedPref.edit()) {
                 userAnswers.forEach { (questionId, answerId) ->
@@ -722,7 +681,6 @@ fun LevelDocumentContent(document: LevelDocument) {
             .padding(top = 100.dp, bottom = 50.dp, start = 16.dp, end = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        // Заголовок
         Text(
             text = parsedDocument.title,
             fontSize = 24.sp,
@@ -733,11 +691,9 @@ fun LevelDocumentContent(document: LevelDocument) {
             modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
         )
 
-        // Контент
         parsedDocument.content.forEachIndexed { index, block ->
             when (block) {
                 is ContentBlock.Paragraph -> {
-                    // Проверяем, является ли блок подзаголовком (начинается с -- в оригинальном тексте)
                     val isSubtitle = document.content.lines().any {
                         it.trim().startsWith("--") && it.trim().substring(2).trim() == block.text
                     }
@@ -834,17 +790,13 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
         if (trimmedLine.isEmpty()) continue
 
         when {
-            // Обработка подзаголовков (начинаются с --)
             trimmedLine.startsWith("--") -> {
-                // Если есть текущее определение, добавляем его
                 currentQuote?.let {
                     contentBlocks.add(ContentBlock.Quote(it.toString()))
                     currentQuote = null
                 }
-                // Добавляем подзаголовок
                 contentBlocks.add(ContentBlock.Paragraph(trimmedLine.substring(2).trim()))
             }
-            // Обработка определений (начинаются с >)
             trimmedLine.startsWith(">") -> {
                 if (currentQuote == null) {
                     currentQuote = StringBuilder(trimmedLine.substring(1).trim())
@@ -853,7 +805,6 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
                 }
             }
             else -> {
-                // Если есть текущее определение, добавляем его
                 currentQuote?.let {
                     contentBlocks.add(ContentBlock.Quote(it.toString()))
                     currentQuote = null
@@ -863,12 +814,10 @@ fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
         }
     }
 
-    // Добавляем последнее определение, если оно есть
     currentQuote?.let {
         contentBlocks.add(ContentBlock.Quote(it.toString()))
     }
 
-    // Добавляем изображение, если оно есть
     imageUrl?.let {
         contentBlocks.add(ContentBlock.Image(it))
     }
@@ -883,7 +832,7 @@ fun QuestionCard(
     selectedAnswerId: Int?,
     checked: Boolean,
     onAnswerSelected: (Int) -> Unit,
-    testCompleted: Boolean = false // Добавляем параметр
+    testCompleted: Boolean = false
 ) {
     Card(
         modifier = Modifier

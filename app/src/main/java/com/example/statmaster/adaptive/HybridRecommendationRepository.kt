@@ -1,13 +1,9 @@
 package com.example.statmaster.adaptive
 
-
 import android.content.Context
 import android.util.Log
 import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.QuestionWithAnswers
-import com.example.statmaster.adaptive.AdaptiveQuestion
-import com.example.statmaster.adaptive.AdaptiveTestingRepository
-import com.example.statmaster.adaptive.Recommendation
 
 class HybridRecommendationRepository(
     private val authManager: AuthManager,
@@ -68,9 +64,8 @@ class HybridRecommendationRepository(
         }
     }
 
-    /**
-     * Получение персонализированных рекомендаций для пользователя
-     */
+    // персонализированные рекомендаци для пользователя
+
     suspend fun getPersonalizedRecommendations(userId: String): List<Recommendation> {
         val similarUsers = collaborativeFiltering.findSimilarUsers(userId)
         val recommendations = mutableListOf<Recommendation>()
@@ -89,43 +84,6 @@ class HybridRecommendationRepository(
         return recommendations
     }
 
-
-//    suspend fun getPersonalizedRecommendations(userId: String): List<Recommendation> {
-//        // ВРЕМЕННО: принудительно показываем, что нашли похожих пользователей
-//        val similarUsers = collaborativeFiltering.findSimilarUsers(userId)
-//
-//        val recommendations = mutableListOf<Recommendation>()
-//
-//        // Базовые рекомендации от IRT
-//        recommendations.addAll(irtRepository.getRecommendations())
-//
-//        // ПРИНУДИТЕЛЬНО ДОБАВЛЯЕМ РЕКОМЕНДАЦИИ ОТ CF
-//        // Даже если реальных похожих пользователей нет, показываем пример
-//        recommendations.add(
-//            Recommendation(
-//                text = "👥 Найдены похожие пользователи! На основе анализа их успехов рекомендуем тему 'Случайные события'.",
-//                difficulty = "easy"
-//            )
-//        )
-//        recommendations.add(
-//            Recommendation(
-//                text = "📊 85% пользователей с вашим уровнем успешно прошли тест по 'Теоремам вероятностей'.",
-//                difficulty = "medium"
-//            )
-//        )
-//        recommendations.add(
-//            Recommendation(
-//                text = "🎯 Следующая тема для изучения: 'Одномерные случайные величины' (рекомендация от похожих пользователей).",
-//                difficulty = "medium"
-//            )
-//        )
-//
-//        return recommendations
-//    }
-
-    /**
-     * Обновление вектора пользователя
-     */
     suspend fun updateUserVector(userId: String) {
         collaborativeFiltering.buildUserVector(userId)
     }

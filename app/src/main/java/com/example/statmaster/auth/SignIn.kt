@@ -75,7 +75,7 @@ fun BottomSheetSignInDialogContent(
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
 
-    // Проверяем, авторизован ли пользователь
+    // авторизован ли пользователь
     LaunchedEffect(Unit) {
         val session = authManager.supabase.auth.currentSessionOrNull()
         if (session != null) {
@@ -98,7 +98,6 @@ fun BottomSheetSignInDialogContent(
             )
             .background(BackgroundColor)
     ) {
-        // Индикатор свайпа вниз
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -125,7 +124,6 @@ fun BottomSheetSignInDialogContent(
             )
         )
 
-        // Отображение ошибки
         errorMessage?.let { message ->
             Text(
                 text = message,
@@ -137,7 +135,6 @@ fun BottomSheetSignInDialogContent(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        // ✅ Исправленный OutlinedTextField с правильными цветами
         OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()
@@ -189,7 +186,6 @@ fun BottomSheetSignInDialogContent(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ✅ Исправленный OutlinedTextField для пароля
         OutlinedTextField(
             modifier = Modifier
                 .fillMaxWidth()

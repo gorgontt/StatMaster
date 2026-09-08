@@ -1,9 +1,7 @@
 package com.example.statmaster.stat
 
 import com.example.statmaster.auth.AuthManager
-import com.example.statmaster.terver.LevelRepository
 import com.example.statmaster.terver.calculateScore
-
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.animation.core.Animatable
@@ -11,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,9 +63,7 @@ import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.DarkBlue2
-import com.example.statmaster.ui.theme.DarkGreen
 import com.example.statmaster.ui.theme.Green
-import com.example.statmaster.ui.theme.Pink
 import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -85,13 +80,8 @@ fun LevelsStat(navController: NavController, scrollToChapter: String? = null) {
     var isLoading by remember { mutableStateOf(true) }
     var connectionError by remember { mutableStateOf(false) }
 
-    // Состояние для анимации прогресса (0..1)
     val progress = remember { Animatable(0f) }
-
-    // Флаг для управления бесконечной анимацией
     var shouldAnimate by remember { mutableStateOf(true) }
-
-    //состояние для принудительного обновления
     var refreshTrigger by remember { mutableStateOf(0) }
 
     val lazyListState = rememberLazyListState()
@@ -99,7 +89,6 @@ fun LevelsStat(navController: NavController, scrollToChapter: String? = null) {
 
     LaunchedEffect(Unit) {
         try {
-            // Запускаем анимацию загрузки
             launch {
                 while (shouldAnimate) {
                     progress.animateTo(0.8f, animationSpec = tween(800))
@@ -107,31 +96,27 @@ fun LevelsStat(navController: NavController, scrollToChapter: String? = null) {
                 }
             }
 
-            // Проверяем соединение
             val isConnected = authManager.testConnection()
             connectionError = !isConnected
 
             if (isConnected) {
-                // Загружаем данные только один раз
                 val loadedLevels = levelRepository.getAllLevels()
                 levels.clear()
                 levels.addAll(loadedLevels)
             }
 
         } finally {
-            // Останавливаем анимацию
             shouldAnimate = false
             progress.animateTo(1f, animationSpec = tween(300))
             isLoading = false
         }
     }
 
-    // Прокрутка к нужной главе
     LaunchedEffect(scrollToChapter, levels.isNotEmpty()) {
         if (scrollToChapter == "chapter2" && levels.isNotEmpty()) {
             val chapter2Index = levels.indexOfFirst { it.id == 13 || it.title == "Итоговый тест 1" }
             if (chapter2Index >= 0) {
-                delay(300) // Увеличили задержку для гарантии рендеринга
+                delay(300)
                 coroutineScope.launch {
                     lazyListState.animateScrollToItem(chapter2Index)
                 }
@@ -248,7 +233,6 @@ fun LevelsStat(navController: NavController, scrollToChapter: String? = null) {
             }
         })
 
-
 }
 
 @Composable
@@ -256,13 +240,11 @@ fun LoadingIndicator(progress: Float) {
     val sweepAngle = progress * 360f
 
     Canvas(modifier = Modifier.size(70.dp)) {
-        // Фоновый круг
         drawCircle(
             color = BackgroundColor,
             radius = size.minDimension / 2 - 4.dp.toPx()
         )
 
-        // Прогресс
         drawArc(
             color = Blue,
             startAngle = -90f,
@@ -284,12 +266,10 @@ fun LevelCard(level: Level, navController: NavController) {
             .getBoolean("level_stat_${level.id}", false)
     }
 
-    // состояние для хранения количества правильных ответов
     var correctAnswers by remember { mutableStateOf(0) }
     var totalQuestions by remember { mutableStateOf(0) }
     var isTestCompleted by remember { mutableStateOf(false) }
 
-    // Загружаем данные теста, если это тест
     LaunchedEffect(level.id) {
         if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый тест")) {
             coroutineScope.launch {
@@ -298,19 +278,17 @@ fun LevelCard(level: Level, navController: NavController) {
                     val questions = levelRepository.getQuestionsWithAnswers(it.id)
                     totalQuestions = questions.size
 
-                    // Проверяем сохраненные ответы
                     val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                     val userAnswers = questions.associate { q ->
                         q.id to sharedPref.getInt("answer_stat_${level.id}_${q.id}", -1)
                     }
 
-                    // Проверяем, все ли вопросы отвечены
                     val allQuestionsAnswered = userAnswers.values.all { it != -1 }
 
                     if (allQuestionsAnswered) {
                         val (correct, total) = calculateScore(questions, userAnswers)
                         correctAnswers = correct
-                        isTestCompleted = true // Устанавливаем флаг завершения теста
+                        isTestCompleted = true
                     } else {
                         isTestCompleted = false
                         correctAnswers = 0
@@ -321,7 +299,6 @@ fun LevelCard(level: Level, navController: NavController) {
         }
     }
 
-    // Определяем цвет карточки
     val cardColor = when {
         (level.title.startsWith("Тест") && (level.isCompleted || isCompletedLocally)) -> Green
         (level.title.startsWith("Итоговый") && (level.isCompleted || isCompletedLocally)) -> DarkBlue
@@ -394,9 +371,9 @@ fun LevelCard(level: Level, navController: NavController) {
 
                 if (level.title.startsWith("Тест") || level.title.startsWith("Итоговый")) {
                     val starIcon = if (level.isCompleted || isCompletedLocally || isTestCompleted) {
-                        R.drawable.star_icon_yellow // Тест выполнен
+                        R.drawable.star_icon_yellow
                     } else {
-                        R.drawable.star_icon_gray // Тест не выполнен
+                        R.drawable.star_icon_gray
                     }
 
                     Image(
@@ -436,7 +413,6 @@ fun ChapterDivider(
             .padding(vertical = 20.dp),
         shape = RoundedCornerShape(0.dp, 30.dp, 30.dp, 0.dp),
         colors = CardDefaults.cardColors(containerColor = DarkBlue2)
-        // contentAlignment = Alignment.CenterStart
     ) {
         Text(
             text = title,

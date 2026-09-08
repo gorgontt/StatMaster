@@ -306,7 +306,6 @@ fun ExpandableCard(
                     )
                 }
 
-                // Анимированное раскрытие списка опций
                 AnimatedVisibility(
                     visible = expanded,
                     enter = expandVertically(animationSpec = tween(300)),
@@ -340,7 +339,6 @@ fun ExpandableCard(
 
                             }
 
-                            // Разделитель между элементами (кроме последнего)
                             if (index < options.size - 1) {
                                 Divider(
                                     color = White.copy(alpha = 0.2f),

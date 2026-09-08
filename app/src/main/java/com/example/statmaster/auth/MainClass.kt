@@ -58,8 +58,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainClass(navController: NavController){
 
-    //val navController = LocalNavController.current
-
     val context = LocalContext.current
     val authManager = remember { AuthManager(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -79,7 +77,6 @@ fun MainClass(navController: NavController){
         }
     }
 
-    // Пока проверяем сессию — показываем загрузку
     if (isCheckingSession) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -143,11 +140,6 @@ fun MainClass(navController: NavController){
                 )
             var isSheet2Open by rememberSaveable { mutableStateOf(false) }
 
-//            val sheetState = androidx.compose.material3.rememberModalBottomSheetState()
-//            var isSheetOpen by rememberSaveable {
-//                mutableStateOf(false)
-//            }
-
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -161,7 +153,7 @@ fun MainClass(navController: NavController){
                     )
 
                     .clickable {
-                        //navController.navigate("players_list/компания")
+
                     },
                 shape = RoundedCornerShape(30.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -169,7 +161,6 @@ fun MainClass(navController: NavController){
 
                 Button(
                     onClick = { isSheetOpen = true },
-                    //contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(BackgroundColor),
@@ -222,7 +213,6 @@ fun MainClass(navController: NavController){
                     )
 
                     .clickable {
-                        //navController.navigate("players_list/компания")
                     },
                 shape = RoundedCornerShape(30.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -230,7 +220,6 @@ fun MainClass(navController: NavController){
 
                 Button(
                     onClick = { isSheet2Open = true },
-                    //contentAlignment = Alignment.Center,
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Blue),
@@ -271,8 +260,5 @@ fun MainClass(navController: NavController){
                 }
             }
         }
-
-
-
     }
 }

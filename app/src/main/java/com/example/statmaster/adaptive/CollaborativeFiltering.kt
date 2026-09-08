@@ -6,8 +6,6 @@ import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.QuestionWithAnswers
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlin.math.sqrt
 
 class CollaborativeFiltering(

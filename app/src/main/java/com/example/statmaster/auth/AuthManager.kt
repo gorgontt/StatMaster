@@ -86,13 +86,10 @@ class AuthManager(private val context: Context) {
                 password = passwordValue
             }
 
-            // Проверяем, что сессия создана (пользователь подтверждён)
             val session = supabase.auth.currentSessionOrNull()
             if (session != null) {
                 emit(AuthResponse.Succes)
             } else {
-                // Для email-регистрации может потребоваться подтверждение
-                // В этом случае пользователь создан, но сессии нет
                 emit(AuthResponse.Succes)
             }
         } catch (e: Exception) {
@@ -156,43 +153,42 @@ class AuthManager(private val context: Context) {
 
             try {
                 val result = credentialManager.getCredential(request = request, context = context)
-                Log.d(TAG, "✅ Credential получен")
+                Log.d(TAG, "Credential получен")
 
                 val credential = result.credential
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val googleIdToken = googleIdTokenCredential.idToken
-                Log.d(TAG, "✅ Google ID Token получен, длина: ${googleIdToken.length}")
+                Log.d(TAG, "Google ID Token получен, длина: ${googleIdToken.length}")
 
                 try {
                     supabase.auth.signInWith(IDToken) {
                         idToken = googleIdToken
                         provider = Google
                     }
-                    Log.d(TAG, "✅ Supabase auth запрос отправлен")
+                    Log.d(TAG, "Supabase auth запрос отправлен")
                 } catch (e: Exception) {
-                    Log.e(TAG, "❌ Ошибка при signInWith: ${e.message}", e)
+                    Log.e(TAG, "Ошибка при signInWith: ${e.message}", e)
                     emit(AuthResponse.Error("Ошибка авторизации: ${e.message}"))
                     return@flow
                 }
 
                 val session = supabase.auth.currentSessionOrNull()
                 if (session != null) {
-                    // ✅ Исправлено - безопасный доступ к user
                     val userEmail = session.user?.email ?: "email не найден"
-                    Log.d(TAG, "✅ Сессия создана успешно! User: $userEmail")
+                    Log.d(TAG, "Сессия создана успешно! User: $userEmail")
                     emit(AuthResponse.Succes)
                 } else {
-                    Log.e(TAG, "❌ Сессия не создана")
+                    Log.e(TAG, "Сессия не создана")
                     emit(AuthResponse.Error("Не удалось создать сессию"))
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "❌ Ошибка при получении credential", e)
+                Log.e(TAG, "Ошибка при получении credential", e)
                 emit(AuthResponse.Error("Ошибка получения данных от Google: ${e.message}"))
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Общая ошибка Google Sign-In", e)
+            Log.e(TAG, "Общая ошибка Google Sign-In", e)
             emit(AuthResponse.Error(e.localizedMessage ?: "Ошибка входа через Google"))
         }
     }
@@ -205,12 +201,11 @@ class AuthManager(private val context: Context) {
 
     suspend fun testConnection(): Boolean {
         return try {
-            // Вариант 1: Простой запрос без limit
             @Serializable
             data class SimpleResponse(val id: Int)
 
             supabase.postgrest["level"]
-                .select()  // Просто выбираем все поля (можно указать columns)
+                .select()
                 .decodeList<SimpleResponse>()
                 .isNotEmpty()
         } catch (e: Exception) {

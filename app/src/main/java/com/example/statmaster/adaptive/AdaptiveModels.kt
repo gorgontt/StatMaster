@@ -2,8 +2,6 @@ package com.example.statmaster.adaptive
 
 import com.example.statmaster.QuestionWithAnswers
 import kotlinx.serialization.Serializable
-import kotlinx.datetime.Instant
-import kotlinx.datetime.Clock
 import kotlinx.serialization.SerialName
 
 // Модели данных для адаптивного тестирования

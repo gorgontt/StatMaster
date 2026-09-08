@@ -93,7 +93,6 @@ fun AdaptiveTestScreen(
                 repository.initializeUserAbility(userId)
                 Log.d("AdaptiveTest", "IRT репозиторий инициализирован")
 
-                // Обновляем вектор пользователя для коллаборативной фильтрации
                 hybridRepository.updateUserVector(userId)
                 Log.d("AdaptiveTest", "Вектор пользователя обновлён")
 
@@ -248,7 +247,6 @@ fun AdaptiveTestScreen(
                                     )
                                     Log.d("AdaptiveTest", "processAnswer завершён")
 
-                                    // Обновляем вектор пользователя после ответа
                                     val userId = authManager.supabase.auth.currentUserOrNull()?.id
                                     if (userId != null) {
                                         hybridRepository.updateUserVector(userId)

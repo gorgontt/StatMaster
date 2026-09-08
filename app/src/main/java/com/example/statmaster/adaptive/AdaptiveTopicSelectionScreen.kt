@@ -19,10 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.statmaster.R
 import com.example.statmaster.ui.theme.BackgroundColor
-import com.example.statmaster.ui.theme.Blue
 import com.example.statmaster.ui.theme.DarkBlue
 import com.example.statmaster.ui.theme.White
-import kotlinx.coroutines.launch
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -31,10 +29,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import com.example.statmaster.Test
 import com.example.statmaster.auth.AuthManager
-import com.example.statmaster.ui.theme.Black
 import com.example.statmaster.ui.theme.LightBlue
-import com.example.statmaster.ui.theme.RedColor
-import com.example.statmaster.ui.theme.Transparent
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.rpc
@@ -51,7 +46,6 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
     var selectedTopicId by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
-        // Загружаем доступные темы (главы)
         topics = getAvailableTopics(authManager)
         isLoading = false
     }
@@ -130,9 +124,7 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    LazyColumn(
-                        //verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+                    LazyColumn() {
                         items(topics) { topic ->
                             TopicCard(
                                 topic = topic,
@@ -141,83 +133,6 @@ fun AdaptiveTopicSelectionScreen(navController: NavController) {
                             )
                         }
                     }
-
-                   //Spacer(modifier = Modifier.weight(1f))
-
-//                    Card(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .align(alignment = Alignment.CenterHorizontally)
-//                            .background(Transparent)
-//                            .shadow(
-//                                elevation = 4.dp,
-//                                ambientColor = Color.Black,
-//                                spotColor = Color.Black,
-//                                shape = RoundedCornerShape(30.dp)
-//                            )
-//
-//                            .clickable {
-//                                //navController.navigate("players_list/компания")
-//                            },
-//                        shape = RoundedCornerShape(30.dp),
-//                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-//                    ){
-//
-//                        Button(
-//                            onClick = {if (selectedTopicId != null) {
-//                                navController.navigate("adaptive_test/${selectedTopicId}")
-//                            }},
-//                            //contentAlignment = Alignment.Center,
-//                            modifier = Modifier
-//                                .fillMaxWidth()
-//                                .background(BackgroundColor),
-//                            colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
-//                        ) {
-//
-//
-//                            Text(
-//                                modifier = Modifier.padding(top=10.dp, bottom = 10.dp),
-//                                text = "Создать аккаунт",
-//                                style = TextStyle(
-//                                    color = Black, fontSize = 20.sp, fontFamily = FontFamily(
-//                                        Font(R.font.jura)
-//                                    )
-//                                )
-//                            )
-//                        }
-//
-//
-//                    }
-
-
-
-
-
-//                    Button(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .background(BackgroundColor),
-//                        colors = ButtonDefaults.buttonColors(containerColor = DarkBlue),
-//                        shape = RoundedCornerShape(60.dp),
-//                        enabled = selectedTopicId != null,
-//                        //colors = ButtonDefaults.buttonColors(
-//                        //    containerColor = if (selectedTopicId != null) White else DarkBlue
-//                        //),
-//                        onClick = {
-//                            if (selectedTopicId != null) {
-//                                navController.navigate("adaptive_test/${selectedTopicId}")
-//                            }
-//                        },
-//
-//
-//                    ) {
-//                        Text(
-//                            text = "Начать тест",
-//                            fontSize = 18.sp,
-//                            color = White,
-//                            fontFamily = FontFamily(Font(R.font.jura))
-//                        )
-//                    }
                 }
             }
         }
@@ -285,7 +200,6 @@ data class Topic(
 
 suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
     return try {
-        // Получаем все тесты с количеством вопросов
         val result = authManager.supabase.postgrest
             .rpc("get_topics_with_question_count")
             .decodeList<Topic>()
@@ -293,7 +207,6 @@ suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
         if (result.isNotEmpty()) {
             result
         } else {
-            // Если RPC не работает, получаем тесты и считаем вопросы отдельно
             val tests = authManager.supabase.postgrest
                 .from("test")
                 .select(Columns.raw("id, title"))
@@ -315,7 +228,6 @@ suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
     } catch (e: Exception) {
         Log.e("AdaptiveTesting", "Error loading topics", e)
 
-        // Возвращаем тестовые данные для разработки
         listOf(
             Topic(1, "Случайные события", 10),
             Topic(2, "Теоремы вероятностей", 8),
@@ -326,15 +238,3 @@ suspend fun getAvailableTopics(authManager: AuthManager): List<Topic> {
         )
     }
 }
-
-// Добавьте RPC функцию в Supabase
-// CREATE OR REPLACE FUNCTION get_topics_with_question_count()
-// RETURNS TABLE(id INT, title TEXT, questionCount BIGINT) AS $$
-// BEGIN
-//     RETURN QUERY
-//     SELECT t.id, t.title, COUNT(q.id)::BIGINT as questionCount
-//     FROM test t
-//     LEFT JOIN question q ON q.test_id = t.id
-//     GROUP BY t.id, t.title;
-// END;
-// $$ LANGUAGE plpgsql;

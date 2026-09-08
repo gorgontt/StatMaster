@@ -82,8 +82,8 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState()) // Добавляем возможность прокрутки если контент не помещается
-            .padding(bottom = 24.dp) // Добавляем отступ снизу
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 24.dp)
             .background(BackgroundColor))
     {
 
@@ -214,10 +214,6 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
 
         Spacer(modifier = Modifier.height(30.dp))
 
-
-        //val buttonVisible = name.isNotBlank()
-        //AnimatedVisibility(visible = buttonVisible) {
-
             Card(
                 modifier = Modifier.fillMaxWidth()
                     .align(alignment = Alignment.CenterHorizontally)
@@ -231,7 +227,6 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
                     )
 
                     .clickable {
-                        //navController.navigate("players_list/компания")
                     },
                 shape = RoundedCornerShape(30.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
@@ -256,7 +251,6 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
                                 }
                             }.launchIn(coroutineScope)
                     },
-                    //contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxWidth().background(BackgroundColor),
                     colors = ButtonDefaults.buttonColors(containerColor = Blue),
                 ) {
@@ -350,9 +344,6 @@ fun BottomSheetSignUpDialogContent(onDismiss: () -> Unit, navController: NavCont
                authManager.loginGoogleUser()
                    .onEach { result ->
                        if (result is AuthResponse.Succes){
-//                           coroutineScope.launch {
-//                               authManager.supabase.from("posts").insert(mapOf("content" to "Hello new user!"))
-//                           }
                            Log.d("auth", "Google success")
                        }else{
                            Log.d("auth", "Google failed")

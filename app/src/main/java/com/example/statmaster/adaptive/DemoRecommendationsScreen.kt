@@ -2,8 +2,6 @@ package com.example.statmaster.adaptive
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -55,7 +53,6 @@ fun AdaptiveTestResultScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Основная карточка с результатами
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -67,9 +64,8 @@ fun AdaptiveTestResultScreen(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Заголовок с поздравлением
                     Text(
-                        text = "🎉 Тест завершен! Найдены похожие пользователи 🎉",
+                        text = "Тест завершен! Найдены похожие пользователи 🎉",
                         fontSize = 22.sp,
                         fontFamily = FontFamily(Font(R.font.jura_semibold)),
                         color = Color(0xFF4CAF50)
@@ -77,7 +73,6 @@ fun AdaptiveTestResultScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Информация об уровне
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Blue.copy(alpha = 0.1f)),
@@ -85,7 +80,7 @@ fun AdaptiveTestResultScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
-                                text = "📈 Ваш уровень: $userLevel",
+                                text = "Ваш уровень: $userLevel",
                                 fontSize = 18.sp,
                                 fontFamily = FontFamily(Font(R.font.jura_semibold)),
                                 color = DarkBlue
@@ -100,7 +95,6 @@ fun AdaptiveTestResultScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Статистика сессии
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5)),
@@ -132,7 +126,7 @@ fun AdaptiveTestResultScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // ========== РЕКОМЕНДАЦИИ ОТ КОЛЛАБОРАТИВНОЙ ФИЛЬТРАЦИИ ==========
+                    // РЕКОМЕНДАЦИИ ОТ КОЛЛАБОРАТИВНОЙ ФИЛЬТРАЦИИ
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = DarkBlue.copy(alpha = 0.15f)),
@@ -141,7 +135,7 @@ fun AdaptiveTestResultScreen(
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "👥 НАЙДЕНЫ ПОХОЖИЕ ПОЛЬЗОВАТЕЛИ!",
+                                    text = "НАЙДЕНЫ ПОХОЖИЕ ПОЛЬЗОВАТЕЛИ!",
                                     fontSize = 16.sp,
                                     fontFamily = FontFamily(Font(R.font.jura_semibold)),
                                     color = DarkBlue
@@ -209,7 +203,6 @@ fun AdaptiveTestResultScreen(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Кнопки действий
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
