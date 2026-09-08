@@ -1,9 +1,11 @@
-// app/build.gradle.kts
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -19,14 +21,28 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        // ✅ Загружаем секреты из local.properties
         val localProperties = Properties()
         val localFile = rootProject.file("local.properties")
         if (localFile.exists()) {
-            localFile.inputStream().use { localProperties.load(it) }
+            localFile.inputStream().use {
+                localProperties.load(it)
+            }
+            println("✅ local.properties loaded from: ${localFile.absolutePath}")
+        } else {
+            println("❌ local.properties NOT found at: ${localFile.absolutePath}")
         }
 
-        val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL") ?: ""
-        val supabaseKey: String = localProperties.getProperty("SUPABASE_KEY") ?: ""
+        // ✅ Берем значения из Properties
+        val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL")
+            ?: project.findProperty("SUPABASE_URL") as? String
+            ?: ""
+        val supabaseKey: String = localProperties.getProperty("SUPABASE_KEY")
+            ?: project.findProperty("SUPABASE_KEY") as? String
+            ?: ""
+
+        println("🔑 SUPABASE_URL: $supabaseUrl")
+        println("🔑 SUPABASE_KEY length: ${supabaseKey.length}")
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_KEY", "\"$supabaseKey\"")
@@ -69,6 +85,7 @@ android {
     }
 }
 
+
 dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.15.0")
@@ -86,10 +103,6 @@ dependencies {
 
     // Testing
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-    testImplementation("io.mockk:mockk:1.13.10")
-    testImplementation("com.google.truth:truth:1.4.0")
-
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.10.01"))
