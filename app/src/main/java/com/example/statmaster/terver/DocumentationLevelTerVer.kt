@@ -1,39 +1,14 @@
 package com.example.statmaster.terver
 
-import com.example.statmaster.auth.AuthManager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -50,35 +25,16 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import coil.compose.AsyncImage
-import com.example.statmaster.ContentBlock
 import com.example.statmaster.Level
 import com.example.statmaster.LevelDocument
-import com.example.statmaster.ParsedDocument
-import com.example.statmaster.QuestionWithAnswers
 import com.example.statmaster.R
+import com.example.statmaster.QuestionWithAnswers
 import com.example.statmaster.Test
+import com.example.statmaster.auth.AuthManager
 import com.example.statmaster.ui.theme.BackgroundColor
-import com.example.statmaster.ui.theme.Black
-import com.example.statmaster.ui.theme.Blue
-import com.example.statmaster.ui.theme.DarkBlue
-import com.example.statmaster.ui.theme.Green
-import com.example.statmaster.ui.theme.RedColor
-import com.example.statmaster.ui.theme.White
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +45,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     val authManager = remember { AuthManager(context) }
     val levelRepository = remember { LevelRepository(authManager, context) }
 
-    var resetTest by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
 
     var levelDocument by remember { mutableStateOf<LevelDocument?>(null) }
@@ -108,17 +63,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     var totalQuestions by remember { mutableStateOf(0) }
 
     val coroutineScope = rememberCoroutineScope()
-    val rotation = remember { Animatable(0f) }
-    val infiniteAnimation = remember {
-        infiniteRepeatable<Float>(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        )
-    }
-
-    LaunchedEffect(Unit) {
-        rotation.animateTo(360f, infiniteAnimation)
-    }
 
     LaunchedEffect(levelId) {
         if (levelId != null) {
@@ -151,13 +95,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                             checkedAnswers = loadedQuestions.map { it.id }.toSet()
                             answersChecked = true
                             testCompleted = true
-
-                            val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
-                            val savedCorrect = resultsPref.getInt("correct_$levelId", -1)
-                            val savedTotal = resultsPref.getInt("total_$levelId", 0)
-                            if (savedCorrect != -1 && savedTotal > 0) {
-                                Log.d("DocumentationLevel", "Loaded saved result: $savedCorrect/$savedTotal")
-                            }
                         }
                     }
                 } else {
@@ -175,36 +112,16 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     val completeLevel: () -> Unit = {
         coroutineScope.launch {
             if (levelId == null) return@launch
-
             isLoading = true
-            showError = false
-
             try {
-                val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
-                if (!updateSuccess) {
-                    showError = true
-                    return@launch
-                }
-
-                if (isTest && questions.isNotEmpty()) {
-                    val (correct, total) = calculateScore(questions, userAnswers)
-                    val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
-                    resultsPref.edit().putString("result_$levelId", "$correct/$total").apply()
-                    resultsPref.edit().putInt("correct_$levelId", correct).apply()
-                    resultsPref.edit().putInt("total_$levelId", total).apply()
-                    Log.d("DocumentationLevel", "Saved test result: $correct/$total for level $levelId")
-                }
-
-                val sharedPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
-                sharedPref.edit().putBoolean("level_$levelId", true).apply()
-
+                levelRepository.updateLevelCompletion(levelId, true)
+                context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
+                    .edit().putBoolean("level_$levelId", true).apply()
                 isLevelCompleted = true
                 Toast.makeText(context, "Урок успешно завершен", Toast.LENGTH_SHORT).show()
-
                 navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
                 navController.popBackStack()
             } catch (e: Exception) {
-                Log.e("CompleteLevel", "Error completing level", e)
                 showError = true
             } finally {
                 isLoading = false
@@ -215,10 +132,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
     val completeTest = {
         coroutineScope.launch {
             if (levelId == null) return@launch
-
             isLoading = true
-            showError = false
-
             try {
                 val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
                 with(sharedPref.edit()) {
@@ -230,21 +144,12 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
 
                 val (correct, total) = calculateScore(questions, userAnswers)
                 val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
-                resultsPref.edit().putString("result_$levelId", "$correct/$total").apply()
                 resultsPref.edit().putInt("correct_$levelId", correct).apply()
                 resultsPref.edit().putInt("total_$levelId", total).apply()
-                Log.d("DocumentationLevel", "Saved test result: $correct/$total for level $levelId")
 
-                val updateSuccess = levelRepository.updateLevelCompletion(levelId, true)
-                if (!updateSuccess) {
-                    showError = true
-                    return@launch
-                }
-
+                levelRepository.updateLevelCompletion(levelId, true)
                 context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
-                    .edit()
-                    .putBoolean("level_$levelId", true)
-                    .apply()
+                    .edit().putBoolean("level_$levelId", true).apply()
 
                 isLevelCompleted = true
                 testCompleted = true
@@ -254,7 +159,6 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
                 navController.popBackStack()
             } catch (e: Exception) {
-                Log.e("CompleteTest", "Error completing test", e)
                 showError = true
             } finally {
                 isLoading = false
@@ -275,22 +179,15 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 questions.forEach { question ->
                     answersPref.edit().remove("answer_${levelId}_${question.id}").apply()
                 }
-
                 val resultsPref = context.getSharedPreferences("TestResults", Context.MODE_PRIVATE)
                 resultsPref.edit().remove("correct_$levelId").apply()
                 resultsPref.edit().remove("total_$levelId").apply()
-                resultsPref.edit().remove("result_$levelId").apply()
 
                 val progressPref = context.getSharedPreferences("LevelProgress", Context.MODE_PRIVATE)
                 progressPref.edit().putBoolean("level_$levelId", false).apply()
-
                 levelRepository.updateLevelCompletion(levelId, false)
-
-                navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
             }
-
-            resetTest = !resetTest
-            Toast.makeText(context, "Тест сброшен. Можно проходить заново.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Тест сброшен", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -298,14 +195,9 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             title = { Text("Сбросить тест") },
-            text = { Text("Вы уверены, что хотите пройти тест заново? Все предыдущие ответы будут удалены.") },
+            text = { Text("Вы уверены, что хотите пройти тест заново?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        showResetDialog = false
-                        resetTestData()
-                    }
-                ) {
+                TextButton(onClick = { showResetDialog = false; resetTestData() }) {
                     Text("Да, сбросить")
                 }
             },
@@ -322,7 +214,7 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             TopAppBar(
                 modifier = Modifier.background(BackgroundColor),
                 colors = TopAppBarDefaults.topAppBarColors(BackgroundColor),
-                title = { Text(currentLevel?.title ?: testData?.title ?: "Документация уровня") },
+                title = { Text(currentLevel?.title ?: testData?.title ?: "Документация") },
                 navigationIcon = {
                     IconButton({
                         navController.currentBackStackEntry?.savedStateHandle?.set("shouldRefresh", true)
@@ -337,33 +229,19 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
             )
         },
         content = {
-            if (isLoading) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    RotatingLoader(rotation.value)
-                }
-            } else if (isTest) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                ) {
-                    if (showAnswerAllQuestionsWarning) {
-                        Text(
-                            text = "Ответьте на все вопросы",
-                            color = Color.Red,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        )
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        LoadingIndicator()
                     }
-
-                    TestContent(
+                }
+                isTest -> {
+                    TestScreenContent(
                         test = testData!!,
                         questions = questions,
                         userAnswers = userAnswers,
                         checkedAnswers = checkedAnswers,
+                        showWarning = showAnswerAllQuestionsWarning,
                         onAnswerSelected = { questionId, answerId ->
                             userAnswers = userAnswers + (questionId to answerId)
                             showAnswerAllQuestionsWarning = false
@@ -372,10 +250,12 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                         levelId = levelId ?: 0
                     )
                 }
-            } else if (levelDocument != null) {
-                LevelDocumentContent(levelDocument!!)
-            } else {
-                Text("Контент не найден")
+                levelDocument != null -> {
+                    DocumentContent(levelDocument!!)
+                }
+                else -> {
+                    Text("Контент не найден")
+                }
             }
         },
         bottomBar = {
@@ -400,12 +280,11 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                                 checkedAnswers = questions.map { it.id }.toSet()
                                 answersChecked = true
                                 showAnswerAllQuestionsWarning = false
-
                                 val (correct, total) = calculateScore(questions, userAnswers)
-                                Toast.makeText(context, "Правильных ответов: $correct из $total", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Правильных: $correct из $total", Toast.LENGTH_SHORT).show()
                             } else {
                                 showAnswerAllQuestionsWarning = true
-                                Toast.makeText(context, "Ответьте на все вопросы перед проверкой", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Ответьте на все вопросы", Toast.LENGTH_SHORT).show()
                             }
                         },
                         onCompleteTest = { completeTest() },
@@ -422,495 +301,5 @@ fun DocumentationLevelTerVer(navController: NavController, levelId: Int?) {
                 }
             }
         }
-
     )
-}
-
-@Composable
-fun TestBottomBar(
-    questions: List<QuestionWithAnswers>,
-    userAnswers: Map<Int, Int?>,
-    checkedAnswers: Set<Int>,
-    answersChecked: Boolean,
-    testCompleted: Boolean,
-    totalQuestions: Int,
-    onCheckAnswers: () -> Unit,
-    onCompleteTest: () -> Unit,
-    onResetTest: () -> Unit
-) {
-    BottomAppBar(
-        containerColor = BackgroundColor,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Card(
-                modifier = Modifier
-                    .padding(start = 30.dp)
-                    .shadow(4.dp, RoundedCornerShape(30.dp)),
-                shape = RoundedCornerShape(30.dp)
-            ) {
-                Row(
-                    modifier = Modifier.background(when {
-                        testCompleted -> Green
-                        answersChecked -> Green
-                        else -> DarkBlue
-                    }),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        modifier = Modifier.padding(start = 10.dp, top = 15.dp, bottom = 15.dp),
-                        text = if (checkedAnswers.isNotEmpty()) {
-                            calculateScore(questions, userAnswers).first.toString()
-                        } else {
-                            "0"
-                        },
-                        style = TextStyle(
-                            color = when {
-                                testCompleted -> Color.Black
-                                answersChecked -> Color.Black
-                                else -> Color.White
-                            },
-                            fontSize = 20.sp,
-                            fontFamily = FontFamily(Font(R.font.jura))
-                        )
-                    )
-                    Text(
-                        modifier = Modifier.padding(end = 10.dp, top = 15.dp, bottom = 15.dp),
-                        text = "/$totalQuestions",
-                        style = TextStyle(
-                            color = when {
-                                testCompleted -> Color.Black
-                                answersChecked -> Color.Black
-                                else -> Color.White
-                            },
-                            fontSize = 20.sp,
-                            fontFamily = FontFamily(Font(R.font.jura))
-                        )
-                    )
-                }
-            }
-
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 10.dp, end = 30.dp)
-                    .shadow(4.dp, RoundedCornerShape(30.dp)),
-                shape = RoundedCornerShape(30.dp)
-            ) {
-                Button(
-                    onClick = {
-                        when {
-                            testCompleted -> {
-                                onResetTest()
-                            }
-                            !answersChecked -> onCheckAnswers()
-                            else -> onCompleteTest()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = if (!answersChecked) {
-                        userAnswers.size == questions.size && userAnswers.values.all { it != null }
-                    } else {
-                        true
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when {
-                            testCompleted -> Color(0xFFFF9800)  // Оранжевый для кнопки сброса
-                            answersChecked -> Green
-                            else -> DarkBlue
-                        }
-                    )
-                ) {
-                    Text(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        text = when {
-                            testCompleted -> "Пройти тест заново"
-                            answersChecked -> "Завершить тест"
-                            else -> "Проверить ответы"
-                        },
-                        style = TextStyle(
-                            color = when {
-                                testCompleted -> Color.Black
-                                answersChecked -> Color.Black
-                                else -> Color.White
-                            },
-                            fontSize = 20.sp,
-                            fontFamily = FontFamily(Font(R.font.jura))
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LessonBottomBar(
-    isLevelCompleted: Boolean,
-    isLoading: Boolean,
-    onCompleteLevel: () -> Unit,
-    showError: Boolean
-) {
-    BottomAppBar(
-        containerColor = BackgroundColor,
-        modifier = Modifier.height(130.dp)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 30.dp)
-                .shadow(4.dp, RoundedCornerShape(30.dp)),
-            shape = RoundedCornerShape(30.dp),
-            colors = CardDefaults.cardColors(Green)
-        ) {
-            Button(
-                onClick = onCompleteLevel,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && !isLevelCompleted,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isLevelCompleted) Green else DarkBlue
-                )
-            ) {
-                Text(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    text = if (isLevelCompleted) "Урок пройден" else "Завершить урок",
-                    style = TextStyle(
-                        color = if (isLevelCompleted) Black else White,
-                        fontSize = 20.sp,
-                        fontFamily = FontFamily(Font(R.font.jura))
-                    )
-                )
-            }
-        }
-        if (showError) {
-            Text(
-                text = "Ошибка при завершении урока",
-                color = Color.Red,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun RotatingLoader(rotation: Float) {
-    Canvas(modifier = Modifier.size(70.dp)) {
-        drawCircle(
-            color = BackgroundColor,
-            radius = size.minDimension / 2 - 4.dp.toPx()
-        )
-        drawArc(
-            color = Blue,
-            startAngle = rotation - 90f,
-            sweepAngle = 90f,
-            useCenter = false,
-            style = Stroke(width = 7.dp.toPx(), cap = StrokeCap.Round)
-        )
-    }
-}
-
-@Composable
-fun TestContent(
-    test: Test,
-    questions: List<QuestionWithAnswers>,
-    userAnswers: Map<Int, Int?>,
-    checkedAnswers: Set<Int>,
-    onAnswerSelected: (Int, Int) -> Unit,
-    context: Context,
-    levelId: Int
-
-) {
-
-    LaunchedEffect(checkedAnswers) {
-        if (checkedAnswers.isNotEmpty()) {
-            val sharedPref = context.getSharedPreferences("TestAnswers", Context.MODE_PRIVATE)
-            with(sharedPref.edit()) {
-                userAnswers.forEach { (questionId, answerId) ->
-                    putInt("answer_${levelId}_$questionId", answerId ?: -1)
-                }
-                apply()
-            }
-        }
-    }
-
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundColor)
-            .padding(top = 100.dp, bottom = 100.dp, start = 16.dp, end = 16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            modifier = Modifier.padding(bottom = 20.dp),
-            text = test.title,
-            style = TextStyle(
-                fontSize = 24.sp,
-                fontFamily = FontFamily(Font(R.font.jura_semibold))),
-        )
-
-        questions.forEach { question ->
-            QuestionCard(
-                question = question,
-                selectedAnswerId = userAnswers[question.id],
-                checked = checkedAnswers.contains(question.id),
-                onAnswerSelected = { answerId ->
-                    onAnswerSelected(question.id, answerId)
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(100.dp))
-    }
-}
-
-@Composable
-fun LevelDocumentContent(document: LevelDocument) {
-    val parsedDocument = remember(document) {
-        parseDocumentContent(document.content, document.imageUrl)
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundColor)
-            .padding(top = 100.dp, bottom = 50.dp, start = 16.dp, end = 16.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Text(
-            text = parsedDocument.title,
-            fontSize = 24.sp,
-            style = TextStyle(
-                color = Black,
-                fontSize = 24.sp,
-                fontFamily = FontFamily(Font(R.font.jura_semibold))),
-            modifier = Modifier.align(Alignment.CenterHorizontally).padding(bottom = 16.dp),
-        )
-
-        parsedDocument.content.forEachIndexed { index, block ->
-            when (block) {
-                is ContentBlock.Paragraph -> {
-                    val isSubtitle = document.content.lines().any {
-                        it.trim().startsWith("--") && it.trim().substring(2).trim() == block.text
-                    }
-
-                    if (isSubtitle) {
-                        Text(
-                            text = block.text,
-                            fontSize = 20.sp,
-                            style = TextStyle(
-                                color = Black,
-                                fontSize = 20.sp,
-                                fontFamily = FontFamily(Font(R.font.jura)),
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier
-                                .padding(top = 16.dp, bottom = 8.dp)
-                                .align(Alignment.Start)
-                        )
-                    } else {
-                        Text(
-                            text = block.text,
-                            style = TextStyle(
-                                color = Black,
-                                fontSize = 18.sp,
-                                fontFamily = FontFamily(Font(R.font.jura))
-                            ),
-                            modifier = Modifier
-                                .padding(bottom = 8.dp)
-                                .align(Alignment.Start)
-                        )
-                    }
-                }
-                is ContentBlock.Quote -> {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(BackgroundColor)
-                            .shadow(
-                                elevation = 4.dp,
-                                ambientColor = Color.Black,
-                                spotColor = Color.Black,
-                                shape = RoundedCornerShape(10.dp)
-                            ),
-                        shape = RoundedCornerShape(10.dp),
-                        colors = CardDefaults.cardColors(BackgroundColor),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(10.dp),
-                            text = block.text,
-                            style = TextStyle(
-                                color = Black,
-                                fontSize = 18.sp,
-                                fontFamily = FontFamily(Font(R.font.jura)),
-                                fontStyle = FontStyle.Italic
-                            )
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(20.dp))
-                }
-                is ContentBlock.Image -> {
-                    AsyncImage(
-                        model = block.url,
-                        contentDescription = "Documentation image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp)
-                    )
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(100.dp))
-    }
-}
-
-
-
-fun parseDocumentContent(content: String, imageUrl: String?): ParsedDocument {
-    val normalizedContent = content
-        .replace("", "⊂")
-        .replace("", "Ω")
-        .replace("", "∅")
-
-    val lines = normalizedContent.lines()
-    if (lines.isEmpty()) return ParsedDocument("", listOf())
-
-    val title = lines.first().trim()
-    val contentBlocks = mutableListOf<ContentBlock>()
-
-    var currentQuote: StringBuilder? = null
-
-    for (line in lines.drop(1)) {
-        val trimmedLine = line.trim()
-        if (trimmedLine.isEmpty()) continue
-
-        when {
-            trimmedLine.startsWith("--") -> {
-                currentQuote?.let {
-                    contentBlocks.add(ContentBlock.Quote(it.toString()))
-                    currentQuote = null
-                }
-                contentBlocks.add(ContentBlock.Paragraph(trimmedLine.substring(2).trim()))
-            }
-            trimmedLine.startsWith(">") -> {
-                if (currentQuote == null) {
-                    currentQuote = StringBuilder(trimmedLine.substring(1).trim())
-                } else {
-                    currentQuote!!.append("\n").append(trimmedLine.substring(1).trim())
-                }
-            }
-            else -> {
-                currentQuote?.let {
-                    contentBlocks.add(ContentBlock.Quote(it.toString()))
-                    currentQuote = null
-                }
-                contentBlocks.add(ContentBlock.Paragraph(trimmedLine))
-            }
-        }
-    }
-
-    currentQuote?.let {
-        contentBlocks.add(ContentBlock.Quote(it.toString()))
-    }
-
-    imageUrl?.let {
-        contentBlocks.add(ContentBlock.Image(it))
-    }
-
-    return ParsedDocument(title, contentBlocks)
-}
-
-
-@Composable
-fun QuestionCard(
-    question: QuestionWithAnswers,
-    selectedAnswerId: Int?,
-    checked: Boolean,
-    onAnswerSelected: (Int) -> Unit,
-    testCompleted: Boolean = false
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp)
-            .shadow(
-                elevation = 4.dp,
-                ambientColor = Color.Black,
-                spotColor = Color.Black,
-                shape = RoundedCornerShape(10.dp)
-            ),
-        colors = CardDefaults.cardColors(containerColor = BackgroundColor),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = question.questionText,
-                style = TextStyle(
-                    fontSize = 16.sp,
-                    fontFamily = FontFamily(Font(R.font.jura_semibold))
-                ),
-                modifier = Modifier.padding(bottom = 15.dp)
-            )
-
-            question.answers.forEach { answer ->
-                val isSelected = selectedAnswerId == answer.id
-                val isCorrect = answer.isCorrect
-                val showCorrectness = checked && (isSelected || isCorrect)
-
-                val backgroundColor = when {
-                    !showCorrectness -> White
-                    isCorrect -> Green
-                    isSelected && !isCorrect -> RedColor
-                    else -> White
-                }
-
-                val borderColor = when {
-                    isSelected -> DarkBlue
-                    else -> White
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .border(1.dp, borderColor, RoundedCornerShape(50.dp))
-                        .background(backgroundColor, RoundedCornerShape(50.dp))
-                        .clickable(
-                            enabled = !checked && !testCompleted, // Блокируем изменения после завершения
-                            onClick = { onAnswerSelected(answer.id) }
-                        )
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        modifier = Modifier.padding(vertical = 10.dp),
-                        text = answer.answerText,
-                        style = TextStyle(
-                            fontSize = 16.sp,
-                            fontFamily = FontFamily(Font(R.font.jura))
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
-fun calculateScore(questions: List<QuestionWithAnswers>, userAnswers: Map<Int, Int?>): Pair<Int, Int> {
-    var correct = 0
-    questions.forEach { question ->
-        val selectedAnswerId = userAnswers[question.id]
-        if (selectedAnswerId != null) {
-            val selectedAnswer = question.answers.firstOrNull { it.id == selectedAnswerId }
-            if (selectedAnswer?.isCorrect == true) {
-                correct++
-            }
-        }
-    }
-    return Pair(correct, questions.size)
 }

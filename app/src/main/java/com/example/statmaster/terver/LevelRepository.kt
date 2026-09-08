@@ -3,7 +3,6 @@ package com.example.statmaster.terver
 import com.example.statmaster.auth.AuthManager
 import android.content.Context
 import android.util.Log
-import androidx.compose.ui.platform.LocalContext
 import com.example.statmaster.Answer
 import com.example.statmaster.Level
 import com.example.statmaster.LevelDocument

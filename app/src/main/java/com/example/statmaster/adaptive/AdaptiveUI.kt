@@ -56,7 +56,7 @@ fun AdaptiveTestScreen(
     val userAbility by repository.userAbility.collectAsState()
     var startTime by remember { mutableStateOf(System.currentTimeMillis()) }
 
-    // Функция загрузки следующего вопроса с повторными попытками
+    // Функция загрузки следующего вопроса
     suspend fun loadNextQuestionWithRetry(maxRetries: Int = 3): AdaptiveQuestion? {
         var retries = 0
         while (retries < maxRetries) {
@@ -81,7 +81,6 @@ fun AdaptiveTestScreen(
         return null
     }
 
-    // Загрузка первого вопроса
     LaunchedEffect(Unit) {
         val userId = authManager.supabase.auth.currentUserOrNull()?.id
         Log.d("AdaptiveTest", "=== НАЧАЛО ЗАГРУЗКИ ТЕСТА ===")
@@ -222,9 +221,11 @@ fun AdaptiveTestScreen(
                     )
                 }
                 currentQuestion != null -> {
-                    QuestionScreen(
+                    AdaptiveQuestionScreen(
                         question = currentQuestion!!,
                         selectedAnswerId = selectedAnswerId,
+                        questionNumber = repository.getSessionStats().totalQuestions + 1,
+                        totalQuestions = 10,
                         onAnswerSelected = { answerId ->
                             selectedAnswerId = answerId
                         },
@@ -291,9 +292,7 @@ fun AdaptiveTestScreen(
                                     currentQuestion = null
                                 }
                             }
-                        },
-                        questionNumber = repository.getSessionStats().totalQuestions + 1,
-                        totalQuestions = 10
+                        }
                     )
                 }
             }
@@ -302,13 +301,13 @@ fun AdaptiveTestScreen(
 }
 
 @Composable
-fun QuestionScreen(
+fun AdaptiveQuestionScreen(
     question: AdaptiveQuestion,
     selectedAnswerId: Int?,
-    onAnswerSelected: (Int) -> Unit,
-    onAnswerSubmit: () -> Unit,
     questionNumber: Int,
-    totalQuestions: Int
+    totalQuestions: Int,
+    onAnswerSelected: (Int) -> Unit,
+    onAnswerSubmit: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -337,7 +336,6 @@ fun QuestionScreen(
             question = question.question,
             selectedAnswerId = selectedAnswerId,
             checked = false,
-            testCompleted = false,
             onAnswerSelected = onAnswerSelected
         )
 
